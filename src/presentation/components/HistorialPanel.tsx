@@ -65,9 +65,9 @@ export function HistorialPanel() {
         <Text style={s.title}>HISTORIAL</Text>
         <Text style={s.subtitle}>{historial.length} · más reciente arriba</Text>
       </View>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView testID="historial-list" showsVerticalScrollIndicator={false}>
         {historial.length === 0 && (
-          <Text style={s.empty}>Sin acciones en esta sesión</Text>
+          <Text testID="historial-empty" style={s.empty}>Sin acciones en esta sesión</Text>
         )}
         {historial.map(e => <EntryCard key={e.id} entry={e} />)}
       </ScrollView>

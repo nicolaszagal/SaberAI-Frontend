@@ -17,7 +17,7 @@ export function ActionPanel() {
   const fbd = isRed ? C.redDark : C.greenDark;
 
   return (
-    <View style={s.panel}>
+    <View testID="action-panel" style={s.panel}>
       {/* Esgrimista + acción */}
       <View style={[s.fencerBlock, { backgroundColor: fbg, borderTopColor: a ? fbd : C.border }]}>
         <Text style={[s.puntoLabel, { color: C.cyan }]}>PUNTO PARA  ●  POSE-ESTIMATION</Text>
@@ -29,11 +29,11 @@ export function ActionPanel() {
         ) : a ? (
           <>
             <Text style={[s.fencerCode, { color: fc }]}>{a.fencer}</Text>
-            <Text style={s.fencerName}>{a.fencerName}</Text>
-            <Text style={s.actionText}>{a.action}</Text>
+            <Text testID="fencer-name" style={s.fencerName}>{a.fencerName}</Text>
+            <Text testID="action-label" style={s.actionText}>{a.action}</Text>
           </>
         ) : (
-          <Text style={s.waitingText}>ESPERANDO CLIP PARA ANALIZAR</Text>
+          <Text testID="action-waiting" style={s.waitingText}>ESPERANDO CLIP PARA ANALIZAR</Text>
         )}
         <Text style={s.sysLabel}>SABRE.AI · SISTEMA DE VIDEO ARBITRAJE INTELIGENTE</Text>
       </View>
@@ -44,7 +44,7 @@ export function ActionPanel() {
         <View style={s.confBarOuter}>
           <View style={[s.confBarInner, { width: `${a?.confidence ?? 0}%` as any }]} />
         </View>
-        <Text style={s.confPct}>{a ? `${a.confidence}%` : '—'}</Text>
+        <Text testID="confidence-value" style={s.confPct}>{a ? `${a.confidence}%` : '—'}</Text>
         <Text style={s.modelInfo}>
           {a ? `Modelo ${a.model}  ·  Latencia ${a.latencyMs} ms` : 'Sin veredicto'}
         </Text>

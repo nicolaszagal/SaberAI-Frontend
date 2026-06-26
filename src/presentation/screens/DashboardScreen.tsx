@@ -174,13 +174,15 @@ interface TileProps {
   onPress: () => void;
   hero?: boolean;
   bgColor: string;
+  testID?: string;
 }
 
-function Tile({ index, title, subtitle, accent, art, chips, onPress, hero, bgColor }: TileProps) {
+function Tile({ index, title, subtitle, accent, art, chips, onPress, hero, bgColor, testID }: TileProps) {
   const C = useC();
   const s = useMemo(() => tileStyles(C), [C]);
   return (
     <TouchableOpacity
+      testID={testID}
       style={[s.tile, hero && s.tileHero, { borderColor: accent + '44' }]}
       onPress={onPress}
       activeOpacity={0.82}
@@ -255,6 +257,7 @@ export function DashboardScreen({ onNavigate }: Props) {
         {/* ── HERO: Análisis en Vivo ── */}
         <Tile
           hero
+          testID="tile-live"
           index="01"
           title={'ANÁLISIS\nEN VIVO'}
           subtitle={`Pista ${SESSION.pista}  ·  ${SESSION.tournament}`}

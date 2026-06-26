@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useC } from '../context/ThemeContext';
 import { HistorialPanel } from '../components/HistorialPanel';
@@ -10,17 +10,16 @@ export function LiveScreen() {
   const s = useMemo(() => styles(C), [C]);
   const { submitClip, sessionStatus, errorMessage, resetSession } = useSession();
 
-  const [hasLuzA, setHasLuzA]     = useState(false);
-  const [hasLuzB, setHasLuzB]     = useState(false);
-  const [videoSrc, setVideoSrc]   = useState<string | null>(null);
-  const [fileName, setFileName]   = useState<string | null>(null);
-  const [clipFile, setClipFile]   = useState<File | null>(null);
+  const [hasLuzA, setHasLuzA]   = useState(false);
+  const [hasLuzB, setHasLuzB]   = useState(false);
+  const [videoSrc, setVideoSrc] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [clipFile, setClipFile] = useState<File | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function handleFileChange(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const file  = input.files?.[0];
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
     if (!file) return;
     if (videoSrc) URL.revokeObjectURL(videoSrc);
     setVideoSrc(URL.createObjectURL(file));
@@ -31,14 +30,7 @@ export function LiveScreen() {
 
   function openFilePicker() {
     if (Platform.OS !== 'web') return;
-    if (!fileInputRef.current) {
-      const input = document.createElement('input');
-      input.type   = 'file';
-      input.accept = 'video/*';
-      input.addEventListener('change', handleFileChange);
-      fileInputRef.current = input;
-    }
-    fileInputRef.current.click();
+    fileInputRef.current?.click();
   }
 
   async function handleAnalyze() {
@@ -50,13 +42,28 @@ export function LiveScreen() {
   const isDone      = sessionStatus === 'done';
   const isError     = sessionStatus === 'error';
 
+  const luzHint = hasLuzA && hasLuzB ? 'AMBAS LUCES' : hasLuzA ? 'LUZ A' : hasLuzB ? 'LUZ B' : 'SIN LUZ';
+
   return (
     <View style={s.root}>
+      {/* Hidden file input — attached to DOM so Playwright can setInputFiles() */}
+      {Platform.OS === 'web' && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="video/*"
+          data-testid="file-input"
+          style={{ display: 'none' } as React.CSSProperties}
+          onChange={handleFileChange}
+        />
+      )}
+
       {/* ── Barra de Luz Favero ── */}
       <View style={s.luzBar}>
         <Text style={s.luzLabel}>LUZ FAVERO</Text>
 
         <TouchableOpacity
+          testID="luz-a-btn"
           style={[s.luzBtn, hasLuzA && { backgroundColor: C.red + '30', borderColor: C.red }]}
           onPress={() => setHasLuzA(v => !v)}
         >
@@ -65,6 +72,7 @@ export function LiveScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
+          testID="luz-b-btn"
           style={[s.luzBtn, hasLuzB && { backgroundColor: C.green + '30', borderColor: C.green }]}
           onPress={() => setHasLuzB(v => !v)}
         >
@@ -72,9 +80,7 @@ export function LiveScreen() {
           <Text style={[s.luzBtnText, { color: hasLuzB ? C.green : C.textMuted }]}>VER</Text>
         </TouchableOpacity>
 
-        <Text style={s.luzHint}>
-          {hasLuzA && hasLuzB ? 'AMBAS LUCES' : hasLuzA ? 'LUZ A' : hasLuzB ? 'LUZ B' : 'SIN LUZ'}
-        </Text>
+        <Text testID="luz-hint" style={s.luzHint}>{luzHint}</Text>
       </View>
 
       {/* ── Zona principal: video + historial ── */}
@@ -109,22 +115,32 @@ export function LiveScreen() {
 
       {/* ── Barra de control ── */}
       <View style={s.controlBar}>
-        <TouchableOpacity style={s.fileBtn} onPress={openFilePicker} disabled={isAnalyzing}>
+        <TouchableOpacity
+          testID="select-clip-btn"
+          style={s.fileBtn}
+          onPress={openFilePicker}
+          disabled={isAnalyzing}
+        >
           <Text style={s.fileBtnText}>📁  SELECCIONAR CLIP</Text>
         </TouchableOpacity>
 
-        <Text style={s.fileNameText} numberOfLines={1}>
+        <Text testID="filename-display" style={s.fileNameText} numberOfLines={1}>
           {fileName ?? 'Ningún archivo seleccionado'}
         </Text>
 
         {isError && errorMessage && (
-          <Text style={[s.statusText, { color: C.red }]} numberOfLines={1}>{errorMessage}</Text>
+          <Text testID="status-error" style={[s.statusText, { color: C.red }]} numberOfLines={1}>
+            {errorMessage}
+          </Text>
         )}
         {isDone && (
-          <Text style={[s.statusText, { color: C.green }]}>✓ Veredicto recibido</Text>
+          <Text testID="status-done" style={[s.statusText, { color: C.green }]}>
+            ✓ Veredicto recibido
+          </Text>
         )}
 
         <TouchableOpacity
+          testID="analizar-btn"
           style={[
             s.analyzeBtn,
             (!clipFile || isAnalyzing) && s.analyzeBtnDisabled,
