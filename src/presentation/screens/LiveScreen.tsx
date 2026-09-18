@@ -41,6 +41,7 @@ export function LiveScreen() {
   const isAnalyzing = sessionStatus === 'analyzing';
   const isDone      = sessionStatus === 'done';
   const isError     = sessionStatus === 'error';
+  const isAnalyzeDisabled = !clipFile || isAnalyzing;
 
   const luzHint = hasLuzA && hasLuzB ? 'AMBAS LUCES' : hasLuzA ? 'LUZ A' : hasLuzB ? 'LUZ B' : 'SIN LUZ';
 
@@ -141,14 +142,11 @@ export function LiveScreen() {
 
         <TouchableOpacity
           testID="analizar-btn"
-          style={[
-            s.analyzeBtn,
-            (!clipFile || isAnalyzing) && s.analyzeBtnDisabled,
-          ]}
+          style={[s.analyzeBtn, isAnalyzeDisabled && s.analyzeBtnDisabled]}
           onPress={handleAnalyze}
-          disabled={!clipFile || isAnalyzing}
+          disabled={isAnalyzeDisabled}
         >
-          <Text style={[s.analyzeBtnText, (!clipFile || isAnalyzing) && { color: C.textMuted }]}>
+          <Text style={[s.analyzeBtnText, isAnalyzeDisabled && { color: C.textMuted }]}>
             {isAnalyzing ? '⏳  ANALIZANDO...' : '▶  ANALIZAR'}
           </Text>
         </TouchableOpacity>

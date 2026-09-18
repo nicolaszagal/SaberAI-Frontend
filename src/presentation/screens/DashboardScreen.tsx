@@ -5,7 +5,7 @@ import Svg, {
   Circle, G, Path,
 } from 'react-native-svg';
 import { useC } from '../context/ThemeContext';
-import { CAMERAS, SYSTEM, SESSION, TOURNAMENT, FENCERS } from '../../data/mock';
+import { CAMERAS, SYSTEM, SESSION } from '../../data/mock';
 import { useSession } from '../context/SessionContext';
 import type { Screen } from '../../../App';
 
@@ -95,69 +95,6 @@ function ArtConfig() {
       <Rect x={10} y={52} width={16} height={4} rx={1} fill="#818cf8" opacity={0.4} />
       <Rect x={30} y={52} width={22} height={4} rx={1} fill="#818cf8" opacity={0.25} />
       <Rect x={57} y={52} width={12} height={4} rx={1} fill="#818cf8" opacity={0.15} />
-    </Svg>
-  );
-}
-
-/** Torneo + PDF: trofeo con documento */
-function ArtTournament() {
-  const C = useC();
-  return (
-    <Svg width="100%" height="100%" viewBox="0 0 100 60" preserveAspectRatio="xMidYMid meet">
-      <Defs>
-        <LinearGradient id="gT" x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor={C.orange} stopOpacity={0.18} />
-          <Stop offset="1" stopColor={C.cyan}   stopOpacity={0.06} />
-        </LinearGradient>
-      </Defs>
-      <Rect width="100" height="60" fill="url(#gT)" />
-      {/* Trofeo */}
-      <Path d="M 28 10 L 48 10 L 48 30 C 48 40 38 46 38 46 C 38 46 28 40 28 30 Z"
-        fill="none" stroke={C.orange} strokeWidth={1.8} strokeLinejoin="round" />
-      <Path d="M 28 14 C 20 14 18 24 24 26" fill="none" stroke={C.orange} strokeWidth={1.2} strokeLinecap="round" />
-      <Path d="M 48 14 C 56 14 58 24 52 26" fill="none" stroke={C.orange} strokeWidth={1.2} strokeLinecap="round" />
-      <Line x1={34} y1={46} x2={34} y2={53} stroke={C.orange} strokeWidth={1.2} strokeLinecap="round" />
-      <Line x1={42} y1={46} x2={42} y2={53} stroke={C.orange} strokeWidth={1.2} strokeLinecap="round" />
-      <Rect x={28} y={53} width={20} height={3} rx={1.5} fill={C.orange} opacity={0.75} />
-      <Circle cx={38} cy={25} r={4} fill={C.orange} opacity={0.85} />
-      {/* Documento PDF */}
-      <Rect x={58} y={12} width={28} height={36} rx={3}
-        fill={C.cyan} opacity={0.1} stroke={C.cyan} strokeWidth={1} />
-      <Line x1={63} y1={22} x2={81} y2={22} stroke={C.cyan} strokeWidth={1} opacity={0.6} />
-      <Line x1={63} y1={27} x2={81} y2={27} stroke={C.cyan} strokeWidth={1} opacity={0.6} />
-      <Line x1={63} y1={32} x2={81} y2={32} stroke={C.cyan} strokeWidth={1} opacity={0.6} />
-      <Line x1={63} y1={37} x2={74} y2={37} stroke={C.cyan} strokeWidth={1} opacity={0.6} />
-      {/* Flecha descarga */}
-      <Line x1={72} y1={38} x2={72} y2={46} stroke={C.cyan} strokeWidth={1.8} strokeLinecap="round" />
-      <Line x1={68} y1={43} x2={72} y2={47} stroke={C.cyan} strokeWidth={1.8} strokeLinecap="round" />
-      <Line x1={76} y1={43} x2={72} y2={47} stroke={C.cyan} strokeWidth={1.8} strokeLinecap="round" />
-    </Svg>
-  );
-}
-
-/** Historial: timeline de acciones */
-function ArtHistory() {
-  const C = useC();
-  const colors = [C.red, C.green, C.red];
-  return (
-    <Svg width="100%" height="100%" viewBox="0 0 100 60" preserveAspectRatio="xMidYMid meet">
-      <Defs>
-        <LinearGradient id="gH" x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor={C.orange} stopOpacity={0.15} />
-          <Stop offset="1" stopColor={C.orange} stopOpacity={0} />
-        </LinearGradient>
-      </Defs>
-      <Rect width="100" height="60" fill="url(#gH)" />
-      <Line x1={20} y1={8} x2={20} y2={52} stroke={C.border} strokeWidth={1} />
-      {[12, 28, 44].map((y, i) => (
-        <G key={i}>
-          <Circle cx={20} cy={y} r={4} fill={colors[i]} />
-          <Line x1={24} y1={y} x2={90} y2={y} stroke={colors[i]} strokeWidth={0.5} opacity={0.3} />
-          <Rect x={26} y={y - 4} width={40} height={4} rx={1} fill={colors[i]} opacity={0.25} />
-          <Rect x={26} y={y + 1} width={28} height={3} rx={1} fill={C.border} opacity={0.5} />
-        </G>
-      ))}
-      <Circle cx={20} cy={52} r={2} fill={C.textDim} />
     </Svg>
   );
 }
@@ -271,57 +208,28 @@ export function DashboardScreen({ onNavigate }: Props) {
           onPress={() => onNavigate('live')}
         />
 
-        {/* ── Grid derecho 2×2 ── */}
-        <View style={s.col}>
-          {/* Fila superior */}
-          <View style={s.row}>
-            <Tile
-              index="02"
-              title="CÁMARAS"
-              subtitle={`${onlineCams} / ${totalCams} en línea`}
-              accent={C.green}
-              art={<ArtCameras />}
-              bgColor={C.card}
-              chips={[{ label: `${onlineCams} EN LÍNEA`, color: C.green }]}
-              onPress={() => onNavigate('cameras')}
-            />
-            <Tile
-              index="03"
-              title="CONFIGURACIÓN"
-              subtitle={`${SYSTEM.modelVersion}  ·  ${SYSTEM.throughputFps} fps`}
-              accent="#818cf8"
-              art={<ArtConfig />}
-              bgColor={C.card}
-              chips={[{ label: 'SISTEMA LISTO', color: '#818cf8' }]}
-              onPress={() => onNavigate('config')}
-            />
-          </View>
-          {/* Fila inferior */}
-          <View style={s.row}>
-            <Tile
-              index="04"
-              title="HISTORIAL"
-              subtitle={`${historial.length} acciones registradas`}
-              accent={C.orange}
-              art={<ArtHistory />}
-              bgColor={C.card}
-              chips={[{ label: `±${SYSTEM.syncRtpMs} ms RTP`, color: C.orange }]}
-              onPress={() => onNavigate('history')}
-            />
-            <Tile
-              index="05"
-              title={'TORNEO\n& PDF'}
-              subtitle={`${TOURNAMENT.round}  ·  ${TOURNAMENT.name}`}
-              accent={C.orange}
-              art={<ArtTournament />}
-              bgColor={C.card}
-              chips={[
-                { label: `${FENCERS.ROJ.score}–${FENCERS.VER.score}`, color: C.cyan },
-                { label: 'EXPORTAR PDF', color: C.orange },
-              ]}
-              onPress={() => onNavigate('tournament')}
-            />
-          </View>
+        {/* ── Cámaras + Configuración ── */}
+        <View style={s.row}>
+          <Tile
+            index="02"
+            title="CÁMARAS"
+            subtitle={`${onlineCams} / ${totalCams} en línea`}
+            accent={C.green}
+            art={<ArtCameras />}
+            bgColor={C.card}
+            chips={[{ label: `${onlineCams} EN LÍNEA`, color: C.green }]}
+            onPress={() => onNavigate('cameras')}
+          />
+          <Tile
+            index="03"
+            title="CONFIGURACIÓN"
+            subtitle={`${SYSTEM.modelVersion}  ·  ${SYSTEM.throughputFps} fps`}
+            accent="#818cf8"
+            art={<ArtConfig />}
+            bgColor={C.card}
+            chips={[{ label: 'SISTEMA LISTO', color: '#818cf8' }]}
+            onPress={() => onNavigate('config')}
+          />
         </View>
       </View>
 
@@ -341,7 +249,6 @@ export function DashboardScreen({ onNavigate }: Props) {
 const styles = (C: ReturnType<typeof useC>) => StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   grid: { flex: 1, flexDirection: 'row', padding: 10, gap: 10 },
-  col:  { flex: 1, gap: 10 },
   row:  { flex: 1, flexDirection: 'row', gap: 10 },
   footer: {
     flexDirection: 'row', justifyContent: 'space-between',
