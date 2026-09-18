@@ -11,8 +11,6 @@ import { DashboardScreen } from './src/presentation/screens/DashboardScreen';
 import { LiveScreen } from './src/presentation/screens/LiveScreen';
 import { CamerasScreen } from './src/presentation/screens/CamerasScreen';
 import { ConfigScreen } from './src/presentation/screens/ConfigScreen';
-import { HistoryScreen } from './src/presentation/screens/HistoryScreen';
-import { TournamentScreen } from './src/presentation/screens/TournamentScreen';
 
 export type Screen = 'dashboard' | 'live' | 'cameras' | 'config' | 'history' | 'tournament';
 
@@ -71,8 +69,6 @@ function Inner() {
         {screen === 'live'      && <LiveScreen />}
         {screen === 'cameras'   && <CamerasScreen />}
         {screen === 'config'     && <ConfigScreen />}
-        {screen === 'history'    && <HistoryScreen />}
-        {screen === 'tournament' && <TournamentScreen />}
       </View>
     </SafeAreaView>
   );

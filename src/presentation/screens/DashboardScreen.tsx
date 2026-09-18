@@ -209,7 +209,7 @@ export function DashboardScreen({ onNavigate }: Props) {
         />
 
         {/* ── Cámaras + Configuración ── */}
-        <View style={s.row}>
+        <View style={s.col}>
           <Tile
             index="02"
             title="CÁMARAS"
@@ -217,7 +217,7 @@ export function DashboardScreen({ onNavigate }: Props) {
             accent={C.green}
             art={<ArtCameras />}
             bgColor={C.card}
-            chips={[{ label: `${onlineCams} EN LÍNEA`, color: C.green }]}
+            chips={[{ label: `EN LÍNEA`, color: C.green }]}
             onPress={() => onNavigate('cameras')}
           />
           <Tile
@@ -227,7 +227,7 @@ export function DashboardScreen({ onNavigate }: Props) {
             accent="#818cf8"
             art={<ArtConfig />}
             bgColor={C.card}
-            chips={[{ label: 'SISTEMA LISTO', color: '#818cf8' }]}
+            chips={[{ label: 'SISTEMA', color: '#818cf8' }]}
             onPress={() => onNavigate('config')}
           />
         </View>
@@ -249,7 +249,7 @@ export function DashboardScreen({ onNavigate }: Props) {
 const styles = (C: ReturnType<typeof useC>) => StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   grid: { flex: 1, flexDirection: 'row', padding: 10, gap: 10 },
-  row:  { flex: 1, flexDirection: 'row', gap: 10 },
+  col:  { flex: 1, flexDirection: 'column', gap: 10 },
   footer: {
     flexDirection: 'row', justifyContent: 'space-between',
     paddingHorizontal: 14, paddingVertical: 5,

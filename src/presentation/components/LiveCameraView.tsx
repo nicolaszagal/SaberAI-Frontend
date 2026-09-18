@@ -60,17 +60,6 @@ export function LiveCameraView({ url, label, compact, style }: LiveCameraViewPro
           <Text style={s.statusLabel}>{label}</Text>
         </View>
       </View>
-
-      {!compact && (
-        <View style={s.footer}>
-          <Text style={s.footerLatency}>{latencyMs !== null ? `${latencyMs} ms` : '—'}</Text>
-          {connected && (
-            <View style={s.liveBadge}>
-              <Text style={s.liveBadgeText}>LIVE</Text>
-            </View>
-          )}
-        </View>
-      )}
     </View>
   );
 }
