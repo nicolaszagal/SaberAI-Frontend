@@ -1,8 +1,10 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useC } from '../context/ThemeContext';
 import { HistorialPanel } from '../components/HistorialPanel';
 import { ActionPanel } from '../components/ActionPanel';
+import { LiveCameraView } from '../components/LiveCameraView';
+import { WS_FRONT_CAMERA_URL, WS_TOP_CAMERA_URL } from '../../infrastructure/config';
 
 export function LiveScreen() {
   const C = useC();
@@ -10,16 +12,16 @@ export function LiveScreen() {
 
   return (
     <View style={s.root}>
-      {/* ── Zona principal: video + historial ── */}
+      {/* ── Zona principal: cámaras + historial ── */}
       <View style={s.contentZone}>
-        {/* Video player */}
-        <View style={s.videoArea}>
-          <View style={s.videoPlaceholder}>
-            <Text style={s.videoPlaceholderIcon}>▶</Text>
-            <Text style={s.videoPlaceholderText}>
-              {Platform.OS === 'web' ? 'Sin clip cargado' : 'Video disponible solo en web'}
-            </Text>
-          </View>
+        {/* Vista frontal */}
+        <View style={s.videoFrontalArea}>
+          <LiveCameraView url={WS_FRONT_CAMERA_URL} label="FRONTAL" />
+        </View>
+
+        {/* Vista cenital */}
+        <View style={s.videoTopArea}>
+          <LiveCameraView url={WS_TOP_CAMERA_URL} label="CENITAL" compact style={s.videoTopInner} />
         </View>
 
         {/* Historial lateral */}
@@ -39,16 +41,16 @@ const styles = (C: ReturnType<typeof useC>) => StyleSheet.create({
 
   contentZone: { flex: 1, flexDirection: 'row' },
 
-  videoArea: {
-    flex: 3,
+  videoFrontalArea: { flex: 3, backgroundColor: '#000' },
+
+  videoTopArea: {
+    flex: 1,
     backgroundColor: '#000',
+    borderLeftWidth: 1, borderLeftColor: C.border,
     borderRightWidth: 1, borderRightColor: C.border,
+    justifyContent: 'center', alignItems: 'center',
   },
-  videoPlaceholder: {
-    flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12,
-  },
-  videoPlaceholderIcon: { color: C.textDim, fontSize: 40 },
-  videoPlaceholderText: { color: C.textDim, fontSize: 13, letterSpacing: 0.3 },
+  videoTopInner: { height: '100%', aspectRatio: 9 / 16 },
 
   historialArea: { flex: 1.1 },
 });
