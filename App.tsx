@@ -16,11 +16,26 @@ import { TournamentScreen } from './src/presentation/screens/TournamentScreen';
 
 export type Screen = 'dashboard' | 'live' | 'cameras' | 'config' | 'history' | 'tournament';
 
+const SCREENS: Screen[] = ['dashboard', 'live', 'cameras', 'config', 'history', 'tournament'];
+
+/** Mapea un pathname de navegador a la pantalla correspondiente (web only). */
+function screenFromPath(pathname: string): Screen {
+  const segment = pathname.replace(/^\//, '');
+  return (SCREENS as string[]).includes(segment) ? (segment as Screen) : 'dashboard';
+}
+
 // ─── Inner app (needs ThemeProvider already mounted) ─────────────────────────
 
 function Inner() {
   const C = useC();
-  const [screen, setScreen] = useState<Screen>('dashboard');
+  // La pantalla inicial se toma de la URL solicitada (deep link / recarga),
+  // no siempre 'dashboard': si no, goto('/live') en Playwright (y cualquier
+  // enlace directo) siempre caería en el Dashboard.
+  const [screen, setScreen] = useState<Screen>(() =>
+    Platform.OS === 'web' && typeof window !== 'undefined'
+      ? screenFromPath(window.location.pathname)
+      : 'dashboard',
+  );
 
   // ── Orientation lock ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -33,10 +48,11 @@ function Inner() {
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
 
-    window.history.replaceState({ screen: 'dashboard' }, '', '/');
+    const path = screen === 'dashboard' ? '/' : `/${screen}`;
+    window.history.replaceState({ screen }, '', path);
 
     const onPopState = (e: PopStateEvent) => {
-      const s: Screen = (e.state?.screen as Screen) ?? 'dashboard';
+      const s: Screen = (e.state?.screen as Screen) ?? screenFromPath(window.location.pathname);
       setScreen(s);
     };
 
