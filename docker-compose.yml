@@ -1,0 +1,19 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sabre_frontend
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+
+  # docker-compose.yml — dentro del profile: local
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: sabre_mediamtx
+    restart: unless-stopped
+    ports:
+      - "1935:1935"   # RTMP entrada desde iPhones
+      - "8554:8554"   # RTSP salida a OpenCV / VLC
+    profiles: ["local"]
