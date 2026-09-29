@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import type { HistorialEntry, CurrentActionData } from '../../domain/entities/Action';
+import type { CombateActivo } from '../../domain/entities/Combate';
 import { analyzeClip } from '../../application/AnalyzeClipUseCase';
 
 export type SessionStatus = 'idle' | 'analyzing' | 'done' | 'error';
@@ -9,7 +10,7 @@ interface SessionContextValue {
   currentAction: CurrentActionData | null;
   sessionStatus: SessionStatus;
   errorMessage:  string | null;
-  submitClip:    (file: File, hasLuzA: boolean, hasLuzB: boolean) => Promise<void>;
+  submitClip:    (file: File, hasLuzA: boolean, hasLuzB: boolean, combate: CombateActivo) => Promise<void>;
   resetSession:  () => void;
 }
 
@@ -21,11 +22,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>('idle');
   const [errorMessage,  setErrorMessage]  = useState<string | null>(null);
 
-  const submitClip = useCallback(async (file: File, hasLuzA: boolean, hasLuzB: boolean) => {
+  const submitClip = useCallback(async (file: File, hasLuzA: boolean, hasLuzB: boolean, combate: CombateActivo) => {
     setSessionStatus('analyzing');
     setErrorMessage(null);
     try {
-      const { action, entry } = await analyzeClip({ file, hasLuzA, hasLuzB });
+      const { action, entry } = await analyzeClip({ file, hasLuzA, hasLuzB, combate });
       setCurrentAction(action);
       setHistorial(prev => [entry, ...prev]);
       setSessionStatus('done');

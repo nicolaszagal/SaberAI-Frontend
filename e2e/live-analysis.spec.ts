@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { mockApi, configurarCombate } from './helpers';
 
 const FIXTURE = 'e2e/fixtures/dummy.mp4';
 
@@ -21,7 +22,16 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify(MOCK_VERDICT),
     }),
   );
+  await mockApi(page);
+  await configurarCombate(page);
+  await page.getByTestId('nav-live').click();
+});
+
+test('sin combate activo no se puede analizar', async ({ page }) => {
   await page.goto('/live');
+  await expect(page.getByTestId('sin-combate')).toBeVisible();
+  await page.getByTestId('file-input').setInputFiles(FIXTURE);
+  await expect(page.getByTestId('analizar-btn')).toHaveAttribute('aria-disabled', 'true');
 });
 
 test('toggles de Luz Favero cambian estado visual', async ({ page }) => {
@@ -40,19 +50,19 @@ test('seleccionar un clip habilita el botón ANALIZAR', async ({ page }) => {
   await expect(page.getByTestId('analizar-btn')).not.toBeDisabled();
 });
 
-test('flujo completo: upload → analizar → veredicto en ActionPanel', async ({ page }) => {
+test('flujo completo: upload → analizar → veredicto con el alias del combate', async ({ page }) => {
   await page.getByTestId('luz-a-btn').click();
   await page.getByTestId('file-input').setInputFiles(FIXTURE);
   await page.getByTestId('analizar-btn').click();
 
   await expect(page.getByTestId('fencer-name')).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByTestId('fencer-name')).toHaveText('A · ROJ');
+  await expect(page.getByTestId('fencer-name')).toHaveText('Rojo');
   await expect(page.getByTestId('action-label')).toHaveText('ATAQUE');
   await expect(page.getByTestId('confidence-value')).toHaveText('92%');
   await expect(page.getByTestId('status-done')).toBeVisible();
 });
 
-test('traduce Contraataque y Riposte, y muestra el tirador del lado B', async ({ page }) => {
+test('traduce Contraataque y muestra el alias del tirador del lado B', async ({ page }) => {
   await page.route('**/matches/*/clip', route =>
     route.fulfill({
       status: 200,
@@ -62,13 +72,11 @@ test('traduce Contraataque y Riposte, y muestra el tirador del lado B', async ({
       }),
     }),
   );
-  await page.goto('/live');
-
   await page.getByTestId('file-input').setInputFiles(FIXTURE);
   await page.getByTestId('analizar-btn').click();
 
   await expect(page.getByTestId('fencer-name')).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByTestId('fencer-name')).toHaveText('B · VER');
+  await expect(page.getByTestId('fencer-name')).toHaveText('Verde');
   await expect(page.getByTestId('action-label')).toHaveText('CONTRAATAQUE');
 });
 

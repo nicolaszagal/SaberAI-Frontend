@@ -1,12 +1,13 @@
-﻿import React, { useMemo } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Svg, {
   Defs, LinearGradient, Stop, Rect, Pattern, Line,
   Circle, G, Path,
 } from 'react-native-svg';
 import { useC } from '../context/ThemeContext';
-import { CAMERAS, SYSTEM, SESSION } from '../../data/mock';
 import { useSession } from '../context/SessionContext';
+import { useCombat } from '../context/CombatContext';
+import { getModeloActivo } from '../../infrastructure/api/fogApi';
 import type { Screen } from '../../../App';
 
 // ─── Arte SVG para cada tile ──────────────────────────────
@@ -46,27 +47,24 @@ function ArtAnalysis() {
   );
 }
 
-/** Cámaras: diagrama de posición con señal */
-function ArtCameras() {
+/** Historial: lista de revisiones */
+function ArtHistory() {
   const C = useC();
   return (
     <Svg width="100%" height="100%" viewBox="0 0 100 60" preserveAspectRatio="xMidYMid meet">
       <Defs>
-        <LinearGradient id="gC" x1="0" y1="0" x2="1" y2="1">
+        <LinearGradient id="gH" x1="0" y1="0" x2="1" y2="1">
           <Stop offset="0" stopColor={C.green} stopOpacity={0.15} />
           <Stop offset="1" stopColor={C.green} stopOpacity={0} />
         </LinearGradient>
       </Defs>
-      <Rect width="100" height="60" fill="url(#gC)" />
-      <Rect x={15} y={10} width={70} height={40} fill="none" stroke={C.green} strokeWidth={0.5} strokeDasharray="3 3" opacity={0.4} />
-      <Line x1={50} y1={10} x2={50} y2={50} stroke={C.green} strokeWidth={0.4} strokeDasharray="2 4" opacity={0.25} />
-      <Circle cx={8}  cy={30} r={4} fill={C.green} opacity={0.9} />
-      <Circle cx={92} cy={30} r={4} fill={C.green} opacity={0.9} />
-      <Circle cx={50} cy={4}  r={4} fill={C.orange} opacity={0.85} />
-      <Circle cx={50} cy={56} r={4} fill="none" stroke={C.textDim} strokeWidth={1} strokeDasharray="2 2" />
-      <Path d="M 14 24 A 8 8 0 0 1 14 36" fill="none" stroke={C.green} strokeWidth={0.8} opacity={0.5} />
-      <Path d="M 18 20 A 14 14 0 0 1 18 40" fill="none" stroke={C.green} strokeWidth={0.5} opacity={0.3} />
-      <Path d="M 86 24 A 8 8 0 0 0 86 36" fill="none" stroke={C.green} strokeWidth={0.8} opacity={0.5} />
+      <Rect width="100" height="60" fill="url(#gH)" />
+      {[12, 26, 40].map((y, i) => (
+        <G key={y}>
+          <Circle cx={14} cy={y} r={3} fill={i === 0 ? C.orange : C.green} opacity={0.85} />
+          <Line x1={24} y1={y} x2={86 - i * 14} y2={y} stroke={C.green} strokeWidth={1.5} strokeLinecap="round" opacity={0.5} />
+        </G>
+      ))}
     </Svg>
   );
 }
@@ -173,8 +171,14 @@ export function DashboardScreen({ onNavigate }: Props) {
   const C = useC();
   const s = useMemo(() => styles(C), [C]);
   const { historial } = useSession();
-  const onlineCams = CAMERAS.filter(c => c.status === 'online').length;
-  const totalCams  = CAMERAS.length + 1;
+  const { combate } = useCombat();
+  const [modelo, setModelo] = useState<string | null>(null);
+
+  useEffect(() => {
+    let activo = true;
+    getModeloActivo().then(m => { if (activo) setModelo(m.nombre); }).catch(() => {});
+    return () => { activo = false; };
+  }, []);
 
   return (
     <View style={s.root}>
@@ -196,38 +200,35 @@ export function DashboardScreen({ onNavigate }: Props) {
           hero
           testID="tile-live"
           index="01"
-          title={'ANÁLISIS\nEN VIVO'}
-          subtitle={`Pista ${SESSION.pista}  ·  ${SESSION.tournament}`}
+          title={'REVISIÓN\nVAR'}
+          subtitle={combate ? `Pista ${combate.pista}  ·  ${combate.aliasA} vs ${combate.aliasB}` : 'Sin combate activo'}
           accent={C.cyan}
           art={<ArtAnalysis />}
           bgColor={C.card}
-          chips={[
-            { label: 'ACTIVO', color: C.live },
-            { label: historial[0] ? `CONFIANZA ${historial[0].confidence}%` : 'SIN DATOS', color: C.green },
-          ]}
+          chips={historial[0] ? [{ label: `CONFIANZA ${historial[0].confidence}%`, color: C.green }] : undefined}
           onPress={() => onNavigate('live')}
         />
 
-        {/* ── Cámaras + Configuración ── */}
+        {/* ── Historial + Configuración del combate ── */}
         <View style={s.row}>
           <Tile
+            testID="tile-history"
             index="02"
-            title="CÁMARAS"
-            subtitle={`${onlineCams} / ${totalCams} en línea`}
+            title="HISTORIAL"
+            subtitle="Revisiones registradas"
             accent={C.green}
-            art={<ArtCameras />}
+            art={<ArtHistory />}
             bgColor={C.card}
-            chips={[{ label: `${onlineCams} EN LÍNEA`, color: C.green }]}
-            onPress={() => onNavigate('cameras')}
+            onPress={() => onNavigate('history')}
           />
           <Tile
+            testID="tile-config"
             index="03"
-            title="CONFIGURACIÓN"
-            subtitle={`${SYSTEM.modelVersion}  ·  ${SYSTEM.throughputFps} fps`}
+            title={'CONFIGURACIÓN\nDEL COMBATE'}
+            subtitle={combate ? `Combate activo  ·  ${combate.aliasA} vs ${combate.aliasB}` : 'Registrar tiradores A y B'}
             accent="#818cf8"
             art={<ArtConfig />}
             bgColor={C.card}
-            chips={[{ label: 'SISTEMA LISTO', color: '#818cf8' }]}
             onPress={() => onNavigate('config')}
           />
         </View>
@@ -236,9 +237,7 @@ export function DashboardScreen({ onNavigate }: Props) {
       {/* Footer */}
       <View style={s.footer}>
         <Text style={s.footerText}>SABRE.AI  ·  SISTEMA DE VIDEO ARBITRAJE INTELIGENTE</Text>
-        <Text style={s.footerText}>
-          LATENCIA {SYSTEM.latencyAvgMs} ms  ·  {SYSTEM.framesProcessed.toLocaleString()} FRAMES  ·  {SYSTEM.precisionPct}% PRECISIÓN
-        </Text>
+        {modelo && <Text style={s.footerText}>MODELO {modelo}</Text>}
       </View>
     </View>
   );

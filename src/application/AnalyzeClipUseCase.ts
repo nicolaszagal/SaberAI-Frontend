@@ -1,6 +1,7 @@
 import type { CurrentActionData, HistorialEntry } from '../domain/entities/Action';
+import type { CombateActivo } from '../domain/entities/Combate';
 import { uploadClip } from '../infrastructure/api/fogApi';
-import { translateAction, scaleConfidence, formatTimestamp, formatFencerLabel } from './mappers/actionMapper';
+import { translateAction, scaleConfidence, formatTimestamp, aliasDelTirador } from './mappers/actionMapper';
 
 let entryCounter = 200;
 
@@ -8,6 +9,7 @@ export interface AnalyzeClipInput {
   file: File;
   hasLuzA: boolean;
   hasLuzB: boolean;
+  combate: CombateActivo;
 }
 
 export interface AnalyzeClipOutput {
@@ -16,11 +18,10 @@ export interface AnalyzeClipOutput {
 }
 
 export async function analyzeClip(input: AnalyzeClipInput): Promise<AnalyzeClipOutput> {
-  const { file, hasLuzA, hasLuzB } = input;
-  const matchId = `match-${Date.now()}`;
+  const { file, hasLuzA, hasLuzB, combate } = input;
   const startMs = Date.now();
 
-  const result = await uploadClip(matchId, file, hasLuzA, hasLuzB);
+  const result = await uploadClip(combate.matchId, file, hasLuzA, hasLuzB);
 
   if (result.timed_out || !result.fencer || !result.action || result.confidence == null) {
     throw new Error('El análisis excedió el tiempo máximo o no devolvió veredicto.');
@@ -34,7 +35,7 @@ export async function analyzeClip(input: AnalyzeClipInput): Promise<AnalyzeClipO
   return {
     action: {
       fencer,
-      fencerName: formatFencerLabel(result.action, fencer),
+      fencerName: aliasDelTirador(result.action, combate),
       action,
       confidence: conf,
       model: 'sabre-lstm-6class',

@@ -1,61 +1,72 @@
 ﻿import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useC, useTheme } from '../context/ThemeContext';
-import { SESSION } from '../../data/mock';
+import { useCombat } from '../context/CombatContext';
+import { useHealth, type Conexion } from '../hooks/useHealth';
 import type { Screen } from '../../../App';
 
-const SCREEN_LABELS: Record<Screen, string> = {
-  dashboard:  '',
-  live:       'ANÁLISIS EN VIVO',
-  cameras:    'ESTADO DE CÁMARAS',
-  config:     'CONFIGURACIÓN',
-  history:    'HISTORIAL DEL ENCUENTRO',
-  tournament: 'TORNEO & EXPORTAR PDF',
+/** Navegación de la Validación 1. */
+const NAV: { screen: Screen; label: string }[] = [
+  { screen: 'dashboard', label: 'INICIO' },
+  { screen: 'live',      label: 'REVISIÓN VAR' },
+  { screen: 'history',   label: 'HISTORIAL' },
+  { screen: 'config',    label: 'COMBATE' },
+];
+
+const CONEXION_LABEL: Record<Conexion, string> = {
+  verificando:  'VERIFICANDO',
+  ok:           'CONECTADO',
+  degradado:    'DEGRADADO',
+  sin_conexion: 'SIN CONEXIÓN',
 };
 
 interface Props {
   screen: Screen;
-  onBack: () => void;
+  onNavigate: (screen: Screen) => void;
 }
 
-export function AppHeader({ screen, onBack }: Props) {
+export function AppHeader({ screen, onNavigate }: Props) {
   const C = useC();
   const { theme, toggleTheme } = useTheme();
-  const isDashboard = screen === 'dashboard';
+  const { combate } = useCombat();
+  const conexion = useHealth();
   const s = useMemo(() => styles(C), [C]);
+  const conexionColor =
+    conexion === 'ok' ? C.green : conexion === 'verificando' ? C.textMuted : conexion === 'degradado' ? C.orange : C.red;
 
   return (
     <View style={s.bar}>
-      {/* ── Izquierda: logo + back ── */}
+      {/* ── Izquierda: logo + navegación ── */}
       <View style={s.left}>
-        {!isDashboard && Platform.OS !== 'web' && (
-          <TouchableOpacity style={s.backBtn} onPress={onBack}>
-            <Text style={s.backArrow}>← VOLVER</Text>
-          </TouchableOpacity>
-        )}
         <Text style={s.logoDot}>● </Text>
         <Text style={s.logoName}>SABRE.AI</Text>
-        <Text style={s.logoSep}> / </Text>
-        <Text style={s.logoSub}>
-          {isDashboard ? 'video arbitraje' : SCREEN_LABELS[screen]}
-        </Text>
+        <View style={s.nav}>
+          {NAV.map(n => (
+            <TouchableOpacity
+              key={n.screen}
+              testID={`nav-${n.screen}`}
+              style={[s.navBtn, screen === n.screen && s.navBtnActive]}
+              onPress={() => onNavigate(n.screen)}
+            >
+              <Text style={[s.navText, screen === n.screen && s.navTextActive]}>{n.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
-      {/* ── Centro: live badge ── */}
-      {!isDashboard && (
-        <View style={s.liveChip}>
-          <View style={s.liveDot} />
-          <Text style={s.liveText}>En directo</Text>
-        </View>
-      )}
-
-      {/* ── Derecha: sesión + toggle tema ── */}
+      {/* ── Derecha: combate activo, conexión y tema ── */}
       <View style={s.right}>
-        <Text style={s.meta}>TORNEO {SESSION.tournament}</Text>
-        <Text style={s.sep}>·</Text>
-        <Text style={s.meta}>PISTA {SESSION.pista}</Text>
-        <Text style={s.sep}>·</Text>
-        <Text style={s.meta}>ÁRBITRO {SESSION.arbitro}</Text>
+        {combate && (
+          <>
+            <Text testID="header-pista" style={s.meta}>PISTA {combate.pista}</Text>
+            <Text style={s.sep}>·</Text>
+            <Text testID="header-arbitro" style={s.meta}>ÁRBITRO {combate.arbitro}</Text>
+          </>
+        )}
+        <View testID="health-indicator" style={s.healthChip}>
+          <View style={[s.healthDot, { backgroundColor: conexionColor }]} />
+          <Text style={[s.healthText, { color: conexionColor }]}>{CONEXION_LABEL[conexion]}</Text>
+        </View>
 
         <TouchableOpacity style={s.themeBtn} onPress={toggleTheme}>
           <Text style={s.themeIcon}>{theme === 'light' ? '☀' : '☾'}</Text>
@@ -83,33 +94,22 @@ const styles = (C: ReturnType<typeof useC>) => StyleSheet.create({
     alignItems: 'center',
     gap: 5,
   },
-  backBtn: {
-    marginRight: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: C.border,
-    backgroundColor: C.card,
-  },
-  backArrow: { color: C.text, fontSize: 13, fontWeight: '600' },
   logoDot:  { color: C.cyan, fontSize: 16 },
   logoName: { color: C.text, fontSize: 16, fontWeight: '800', letterSpacing: 1.5 },
   logoSep:  { color: C.textMuted, fontSize: 15 },
   logoSub:  { color: C.textMuted, fontSize: 13, letterSpacing: 0.6, fontWeight: '500' },
-  liveChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: C.live,
-    borderRadius: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    gap: 6,
-    backgroundColor: C.live + '18',
-  },
   liveDot:  { width: 6, height: 6, borderRadius: 3, backgroundColor: C.live },
-  liveText: { color: C.liveText, fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
+  nav: { flexDirection: 'row', gap: 4, marginLeft: 16 },
+  navBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 4, borderWidth: 1, borderColor: 'transparent' },
+  navBtnActive: { borderColor: C.cyan, backgroundColor: C.cyan + '18' },
+  navText: { color: C.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 0.6 },
+  navTextActive: { color: C.text },
+  healthChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 6,
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, borderWidth: 1, borderColor: C.border,
+  },
+  healthDot: { width: 7, height: 7, borderRadius: 4 },
+  healthText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
   right: {
     flexDirection: 'row',
     alignItems: 'center',
