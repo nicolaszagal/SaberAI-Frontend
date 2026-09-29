@@ -3,6 +3,19 @@ import { expect, type Page } from '@playwright/test';
 export const EVENTO_ID = '11111111-1111-4111-8111-111111111111';
 export const ARBITRO_ID = '22222222-2222-4222-8222-222222222222';
 export const MATCH_ID = '33333333-3333-4333-8333-333333333333';
+export const REVISION_ID = '44444444-4444-4444-8444-444444444444';
+
+/** Respuesta de POST /matches/{id}/clip con sugerencia disponible. */
+export const CLIP_OK = {
+  match_id: MATCH_ID, revision_id: REVISION_ID, has_luz_A: true, has_luz_B: false,
+  timed_out: false, disponible: true, motivo: null, fencer: 'ROJ', action: 'AttackA', confidence: 0.92,
+};
+
+/** Respuesta de GET /matches/{id}: el mismo combate que crea `configurarCombate`. */
+export const COMBATE_OK = {
+  match_id: MATCH_ID, pista: 'P1', arbitro_id: ARBITRO_ID, arbitro: 'Árbitro Prueba',
+  alias_A: 'Rojo', weapon_side_A: 'right', alias_B: 'Verde', weapon_side_B: 'left',
+};
 
 const json = (body: unknown, status = 200) => ({
   status, contentType: 'application/json', body: JSON.stringify(body),
@@ -10,6 +23,11 @@ const json = (body: unknown, status = 200) => ({
 
 /** Intercepta la API del Fog para correr sin el backend Python. */
 export async function mockApi(page: Page, opts: { revisiones?: unknown[]; health?: 'ok' | 'degradado' | 'caido' } = {}) {
+  // GET /matches/{id}: valida el combate activo recordado (404 si no es el creado).
+  await page.route(/\/matches\/[0-9a-f-]{36}$/, route =>
+    route.request().url().endsWith(MATCH_ID)
+      ? route.fulfill(json(COMBATE_OK))
+      : route.fulfill(json({ detail: 'no existe' }, 404)));
   await page.route('**/health', route => {
     if (opts.health === 'caido') return route.abort();
     if (opts.health === 'degradado') return route.fulfill(json({ fog: 'ok', redis: 'error', postgres: 'ok' }, 503));
@@ -40,4 +58,17 @@ export async function configurarCombate(page: Page) {
   await page.getByTestId('tirador-b-menor-false').click();
   await page.getByTestId('crear-combate-btn').click();
   await expect(page.getByTestId('combate-activo')).toBeVisible();
+}
+
+/** Intercepta POST /matches/{id}/clip con la respuesta dada (por defecto, sugerencia disponible). */
+export async function mockClip(page: Page, body: unknown = CLIP_OK, status = 200) {
+  await page.route('**/matches/*/clip', route => route.fulfill(json(body, status)));
+}
+
+/** Elige el clip, marca la luz de A y el tocado, y pulsa ANALIZAR. */
+export async function analizarClip(page: Page, fixture = 'e2e/fixtures/dummy.mp4') {
+  await page.getByTestId('file-input').setInputFiles(fixture);
+  await page.getByTestId('luz-a-btn').click();
+  await page.getByTestId('marcar-tocado-btn').click();
+  await page.getByTestId('analizar-btn').click();
 }

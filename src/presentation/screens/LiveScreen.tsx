@@ -1,15 +1,18 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+/**
+ * LiveScreen — Revisión VAR (CU-05 a CU-07, CU-10)
+ * Izquierda (≈70 %): reproductor del clip. Derecha (≈30 %): Paso 1 · Clip,
+ * Paso 2 · Sugerencia y Paso 3 · Decisión del árbitro. El sistema solo sugiere (RNF-01).
+ */
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, ScrollView, StyleSheet, Platform } from 'react-native';
 import { useC } from '../context/ThemeContext';
-import { HistorialPanel } from '../components/HistorialPanel';
-import { ActionPanel } from '../components/ActionPanel';
-import { Button } from '../components/Button';
+import { ClipPlayer } from '../components/ClipPlayer';
+import { PasoClip, PasoSugerencia, PasoDecision } from '../components/PanelRevision';
 import { StateMessage } from '../components/StateMessage';
 import { useSession } from '../context/SessionContext';
 import { useCombat } from '../context/CombatContext';
 import { useShortcut } from '../hooks/useShortcut';
-import { FENCER_LABEL } from '../theme/fencer';
-import { CONTROL_HEIGHT, FONT, RADIUS, space } from '../theme/tokens';
+import { space } from '../theme/tokens';
 import type { Screen } from '../../../App';
 
 interface Props {
@@ -19,24 +22,29 @@ interface Props {
 export function LiveScreen({ onNavigate }: Props) {
   const C = useC();
   const s = useMemo(() => styles(C), [C]);
-  const { combate } = useCombat();
-  const { submitClip, sessionStatus, errorMessage, resetSession } = useSession();
+  const { combate, validando, errorValidacion, reintentarValidacion } = useCombat();
+  const { submitClip, sessionStatus, resetSession } = useSession();
 
-  const [hasLuzA, setHasLuzA]   = useState(false);
-  const [hasLuzB, setHasLuzB]   = useState(false);
-  const [videoSrc, setVideoSrc] = useState<string | null>(null);
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [clipFile, setClipFile] = useState<File | null>(null);
+  const [hasLuzA, setHasLuzA]     = useState(false);
+  const [hasLuzB, setHasLuzB]     = useState(false);
+  const [videoSrc, setVideoSrc]   = useState<string | null>(null);
+  const [fileName, setFileName]   = useState<string | null>(null);
+  const [clipFile, setClipFile]   = useState<File | null>(null);
+  const [tTocadoMs, setTTocadoMs] = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoRef     = useRef<HTMLVideoElement>(null);
+
+  // Libera la URL del clip al cambiarlo o al salir de la pantalla.
+  useEffect(() => () => { if (videoSrc) URL.revokeObjectURL(videoSrc); }, [videoSrc]);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (videoSrc) URL.revokeObjectURL(videoSrc);
     setVideoSrc(URL.createObjectURL(file));
     setFileName(file.name);
     setClipFile(file);
+    setTTocadoMs(null);
     resetSession();
   }
 
@@ -45,182 +53,97 @@ export function LiveScreen({ onNavigate }: Props) {
     fileInputRef.current?.click();
   }
 
-  async function handleAnalyze() {
-    if (!clipFile || !combate || sessionStatus === 'analyzing') return;
-    await submitClip(clipFile, hasLuzA, hasLuzB, combate);
+  /** Toma el instante actual del reproductor como tocado (RF-02), en ms desde el inicio. */
+  function marcarTocado() {
+    const v = videoRef.current;
+    if (!v) return;
+    const maximo = Number.isFinite(v.duration) ? Math.floor(v.duration * 1000) : Infinity;
+    setTTocadoMs(Math.min(Math.round(v.currentTime * 1000), maximo));
   }
 
   const isAnalyzing = sessionStatus === 'analyzing';
-  const isDone      = sessionStatus === 'done';
-  const isError     = sessionStatus === 'error';
-  const isAnalyzeDisabled = !clipFile || !combate || isAnalyzing;
+  const faltante =
+    !combate ? 'un combate activo'
+    : !clipFile ? 'elegir un clip'
+    : !hasLuzA && !hasLuzB ? 'marcar la luz A o la luz B'
+    : tTocadoMs === null ? 'marcar el instante del tocado'
+    : null;
+
+  async function handleAnalyze() {
+    if (faltante !== null || isAnalyzing || !clipFile || tTocadoMs === null) return;
+    await submitClip({ file: clipFile, hasLuzA, hasLuzB, tTocadoMs });
+  }
 
   useShortcut({ tecla: 's', activo: !isAnalyzing }, openFilePicker);
-  useShortcut({ tecla: 'Enter', activo: !isAnalyzeDisabled }, handleAnalyze);
-
-  const luzHint = hasLuzA && hasLuzB ? 'Ambas luces' : hasLuzA ? 'Luz A' : hasLuzB ? 'Luz B' : 'Sin luz';
+  useShortcut({ tecla: 'Enter', activo: faltante === null && !isAnalyzing }, handleAnalyze);
 
   return (
     <View style={s.root}>
-      {/* Hidden file input — attached to DOM so Playwright can setInputFiles() */}
+      {/* Selector de archivo oculto, en el DOM para que Playwright pueda usar setInputFiles() */}
       {Platform.OS === 'web' && (
         <input
           ref={fileInputRef}
           type="file"
-          accept="video/*"
+          accept=".mp4,.mov,video/mp4,video/quicktime"
           data-testid="file-input"
           style={{ display: 'none' } as React.CSSProperties}
           onChange={handleFileChange}
         />
       )}
 
-      {/* ── Luz Favero (señal simulada, D-12) ── */}
-      <View style={s.luzBar}>
-        <Text style={s.luzLabel}>Luz Favero (simulada)</Text>
-
-        <TouchableOpacity
-          testID="luz-a-btn"
-          accessibilityRole="button"
-          accessibilityState={{ selected: hasLuzA }}
-          style={[s.luzBtn, hasLuzA && { backgroundColor: C.red + '22', borderColor: C.red }]}
-          onPress={() => setHasLuzA(v => !v)}
-        >
-          <Text style={[s.luzBtnText, { color: hasLuzA ? C.red : C.textMuted }]}>
-            {hasLuzA ? '● ' : '○ '}{FENCER_LABEL.ROJ}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          testID="luz-b-btn"
-          accessibilityRole="button"
-          accessibilityState={{ selected: hasLuzB }}
-          style={[s.luzBtn, hasLuzB && { backgroundColor: C.green + '22', borderColor: C.green }]}
-          onPress={() => setHasLuzB(v => !v)}
-        >
-          <Text style={[s.luzBtnText, { color: hasLuzB ? C.green : C.textMuted }]}>
-            {hasLuzB ? '● ' : '○ '}{FENCER_LABEL.VER}
-          </Text>
-        </TouchableOpacity>
-
-        <Text testID="luz-hint" style={s.luzHint}>{luzHint}</Text>
-      </View>
-
-      {/* ── Zona principal: video + historial ── */}
       <View style={s.contentZone}>
         <View style={s.videoArea}>
-          {Platform.OS === 'web' ? (
-            videoSrc ? (
-              <video
-                src={videoSrc}
-                controls
-                style={{ width: '100%', height: '100%', objectFit: 'contain', backgroundColor: '#000' } as any}
-              />
-            ) : (
-              <View style={s.videoPlaceholder}>
-                <Text style={s.videoPlaceholderTitle}>Sin clip cargado</Text>
-                <Text style={s.videoPlaceholderText}>Pulsa «Seleccionar clip» (tecla S) para elegir un MP4 o MOV.</Text>
-              </View>
-            )
-          ) : (
-            <View style={s.videoPlaceholder}>
-              <Text style={s.videoPlaceholderText}>Video disponible solo en web</Text>
+          <ClipPlayer src={videoSrc} videoRef={videoRef} />
+        </View>
+
+        <ScrollView style={s.panel} contentContainerStyle={s.panelContent}>
+          {validando && (
+            <View style={s.aviso}>
+              <StateMessage testID="validando-combate" tipo="cargando" titulo="Verificando el combate activo…" />
             </View>
           )}
-        </View>
+          {errorValidacion && (
+            <View style={s.aviso}>
+              <StateMessage
+                testID="error-combate" tipo="error"
+                titulo="No se pudo verificar el combate activo"
+                siguiente={`${errorValidacion.replace(/\.?\s*$/, '.')} Comprueba la conexión con el Fog.`}
+                accion={{ label: 'Reintentar', onPress: reintentarValidacion }}
+              />
+            </View>
+          )}
+          {!combate && !validando && !errorValidacion && (
+            <View style={s.aviso}>
+              <StateMessage
+                testID="sin-combate" tipo="vacio"
+                titulo="No hay combate activo"
+                siguiente="Registra a los tiradores A y B para poder analizar un clip."
+                accion={{ label: 'Configurar combate', onPress: () => onNavigate('config') }}
+              />
+            </View>
+          )}
 
-        <View style={s.historialArea}>
-          <HistorialPanel />
-        </View>
-      </View>
-
-      {/* ── Avisos: sin combate, error o resultado ── */}
-      {!combate && (
-        <View style={s.notice}>
-          <StateMessage
-            testID="sin-combate" tipo="vacio"
-            titulo="No hay combate activo"
-            siguiente="Registra a los tiradores A y B para poder analizar un clip."
-            accion={{ label: 'Configurar combate', onPress: () => onNavigate('config') }}
+          <PasoClip
+            fileName={fileName}
+            onElegirClip={openFilePicker}
+            hasLuzA={hasLuzA} hasLuzB={hasLuzB}
+            onLuzA={() => setHasLuzA(v => !v)} onLuzB={() => setHasLuzB(v => !v)}
+            tTocadoMs={tTocadoMs} onMarcarTocado={marcarTocado}
+            onAnalizar={handleAnalyze} faltante={faltante}
           />
-        </View>
-      )}
-      {isAnalyzing && (
-        <View style={s.notice}>
-          <StateMessage testID="status-analyzing" tipo="cargando" titulo="Analizando el clip…" siguiente="La sugerencia llega en menos de 60 s." />
-        </View>
-      )}
-      {isError && errorMessage && (
-        <View style={s.notice}>
-          <StateMessage
-            testID="status-error" tipo="error"
-            titulo="No se pudo analizar el clip"
-            siguiente={`${errorMessage.replace(/\.?\s*$/, '.')} Revisa el clip y vuelve a intentarlo.`}
-            accion={{ label: 'Reintentar', shortcut: 'Intro', onPress: handleAnalyze }}
-          />
-        </View>
-      )}
-
-      {/* ── Barra de control ── */}
-      <View style={s.controlBar}>
-        <Button testID="select-clip-btn" label="Seleccionar clip" shortcut="S" onPress={openFilePicker} disabled={isAnalyzing} />
-
-        <Text testID="filename-display" style={s.fileNameText} numberOfLines={1}>
-          {fileName ?? 'Ningún archivo seleccionado'}
-        </Text>
-
-        {isDone && (
-          <Text testID="status-done" style={[s.statusText, { color: C.green }]}>✓ Sugerencia recibida</Text>
-        )}
-
-        <Button
-          testID="analizar-btn"
-          variant="primary"
-          label={isAnalyzing ? 'Analizando…' : 'Analizar'}
-          shortcut="Intro"
-          onPress={handleAnalyze}
-          disabled={isAnalyzeDisabled}
-        />
+          <PasoSugerencia />
+          <PasoDecision />
+        </ScrollView>
       </View>
-
-      {/* ── Panel de sugerencia y decisión ── */}
-      <ActionPanel />
     </View>
   );
 }
 
 const styles = (C: ReturnType<typeof useC>) => StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
-
-  luzBar: {
-    flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center',
-    paddingHorizontal: space(4), paddingVertical: space(2), gap: space(3),
-    backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border,
-  },
-  luzLabel: { color: C.textMuted, fontSize: FONT.sm, fontWeight: '600' },
-  luzBtn: {
-    minHeight: CONTROL_HEIGHT, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: space(4), borderRadius: RADIUS.md, borderWidth: 1, borderColor: C.borderBright,
-    backgroundColor: C.card,
-  },
-  luzBtnText: { fontSize: FONT.sm, fontWeight: '800' },
-  luzHint:    { color: C.text, fontSize: FONT.sm, fontWeight: '600' },
-
-  contentZone: { flex: 1, flexDirection: 'row', minHeight: 200 },
-
-  videoArea: { flex: 3, backgroundColor: '#000', borderRightWidth: 1, borderRightColor: C.border },
-  videoPlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: space(2), padding: space(4) },
-  videoPlaceholderTitle: { color: '#ffffff', fontSize: FONT.lg, fontWeight: '700' },
-  videoPlaceholderText:  { color: '#d1d5db', fontSize: FONT.sm, textAlign: 'center' },
-
-  historialArea: { flex: 1.1, minWidth: 240 },
-
-  notice: { paddingHorizontal: space(4), paddingTop: space(3) },
-
-  controlBar: {
-    flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center',
-    paddingHorizontal: space(4), paddingVertical: space(2), gap: space(3),
-    backgroundColor: C.surface, borderTopWidth: 1, borderTopColor: C.border,
-  },
-  fileNameText: { flex: 1, minWidth: 120, color: C.textMuted, fontSize: FONT.sm },
-  statusText:   { fontSize: FONT.sm, fontWeight: '700' },
+  contentZone: { flex: 1, flexDirection: 'row', minHeight: 320 },
+  videoArea: { flex: 7, backgroundColor: '#000', borderRightWidth: 1, borderRightColor: C.border },
+  panel: { flex: 3, minWidth: 320, backgroundColor: C.surface },
+  panelContent: { paddingBottom: space(4) },
+  aviso: { paddingHorizontal: space(3), paddingTop: space(3) },
 });

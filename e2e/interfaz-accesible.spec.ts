@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { mockApi, configurarCombate } from './helpers';
+import { mockApi, configurarCombate, mockClip, analizarClip, CLIP_OK } from './helpers';
 
 const FIXTURE = 'e2e/fixtures/dummy.mp4';
 const RUTAS = ['/', '/live', '/history', '/config'];
@@ -64,18 +64,14 @@ test('los tiradores se rotulan con texto: "A · ROJ" y "B · VER"', async ({ pag
 });
 
 test('el resultado rotula el lado con texto y la salida como sugerencia', async ({ page }) => {
-  await page.route('**/matches/*/clip', route => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify({ match_id: 'm', has_luz_A: false, has_luz_B: true, timed_out: false, fencer: 'VER', action: 'RiposteB', confidence: 0.61 }),
-  }));
+  await mockClip(page, { ...CLIP_OK, fencer: 'VER', action: 'RiposteB', confidence: 0.61 });
   await mockApi(page);
   await configurarCombate(page);
   await page.getByTestId('nav-live').click();
-  await page.getByTestId('file-input').setInputFiles(FIXTURE);
-  await page.getByTestId('analizar-btn').click();
-  await expect(page.getByTestId('action-panel')).toContainText('Sugerencia del sistema');
-  await expect(page.getByTestId('action-panel')).toContainText('B · VER');
-  await expect(page.getByTestId('action-panel')).not.toContainText('PUNTO PARA');
+  await analizarClip(page);
+  await expect(page.getByTestId('paso-sugerencia')).toContainText('Sugerencia del sistema');
+  await expect(page.getByTestId('paso-sugerencia')).toContainText('B · VER');
+  await expect(page.getByTestId('paso-sugerencia')).not.toContainText('PUNTO PARA');
 });
 
 test('los botones principales muestran su atajo de teclado', async ({ page }) => {
@@ -101,16 +97,15 @@ test('el atajo Intro analiza el clip cargado', async ({ page }) => {
   let posts = 0;
   await page.route('**/matches/*/clip', route => {
     posts++;
-    return route.fulfill({
-      status: 200, contentType: 'application/json',
-      body: JSON.stringify({ match_id: 'm', has_luz_A: true, has_luz_B: false, timed_out: false, fencer: 'ROJ', action: 'AttackA', confidence: 0.9 }),
-    });
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(CLIP_OK) });
   });
   await mockApi(page);
   await configurarCombate(page);
   await page.getByTestId('nav-live').click();
   await page.getByTestId('file-input').setInputFiles(FIXTURE);
   await expect(page.getByTestId('filename-display')).toContainText('dummy.mp4');
+  await page.getByTestId('luz-a-btn').click();
+  await page.getByTestId('marcar-tocado-btn').click();
   await expect(page.getByTestId('analizar-btn')).not.toHaveAttribute('aria-disabled', 'true');
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.keyboard.press('Enter');
@@ -156,16 +151,12 @@ test.describe('estados con mensaje y acción siguiente', () => {
     let intento = 0;
     await page.route('**/matches/*/clip', route => ++intento === 1
       ? route.fulfill({ status: 500, contentType: 'text/plain', body: 'falla' })
-      : route.fulfill({
-        status: 200, contentType: 'application/json',
-        body: JSON.stringify({ match_id: 'm', has_luz_A: true, has_luz_B: false, timed_out: false, fencer: 'ROJ', action: 'AttackA', confidence: 0.9 }),
-      }));
+      : route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(CLIP_OK) }));
     await mockApi(page);
     await configurarCombate(page);
     await page.getByTestId('nav-live').click();
-    await page.getByTestId('file-input').setInputFiles(FIXTURE);
-    await page.getByTestId('analizar-btn').click();
-    await expect(page.getByTestId('status-error')).toContainText('No se pudo analizar el clip');
+    await analizarClip(page);
+    await expect(page.getByTestId('status-error')).toContainText('no se pudo analizar el clip');
     await page.getByTestId('status-error').getByRole('button', { name: /Reintentar/ }).click();
     await expect(page.getByTestId('status-done')).toBeVisible();
   });
