@@ -3,10 +3,15 @@
  * Registra evento, pista, árbitro y los tiradores A y B con su brazo armado
  * (POST /matches/config). El combate creado queda activo para las revisiones.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { useC } from '../context/ThemeContext';
 import { useCombat } from '../context/CombatContext';
+import { Button } from '../components/Button';
+import { StateMessage } from '../components/StateMessage';
+import { useShortcut } from '../hooks/useShortcut';
+import { FENCER_LABEL } from '../theme/fencer';
+import { CONTROL_HEIGHT, FONT, RADIUS, space } from '../theme/tokens';
 import { configureMatch, getArbitros, getEventos } from '../../infrastructure/api/fogApi';
 import type {
   BrazoArmado, EventoCatalogo, UsuarioCatalogo,
@@ -50,7 +55,7 @@ function Choice<T extends string | boolean>({ testID, options, value, onChange }
           style={[s.choice, value === o.value && s.choiceOn]}
           onPress={() => onChange(o.value)}
         >
-          <Text style={[s.choiceText, value === o.value && s.choiceTextOn]}>{o.label}</Text>
+          <Text style={[s.choiceText, value === o.value && s.choiceTextOn]}>{value === o.value ? '✓ ' : ''}{o.label}</Text>
         </TouchableOpacity>
       ))}
     </View>
@@ -78,31 +83,31 @@ function TiradorSection({ lado, value, onChange }: {
   const color = lado === 'A' ? C.red : C.green;
   return (
     <View style={s.card}>
-      <Text style={[s.cardTitle, { color }]}>TIRADOR {lado} · {lado === 'A' ? 'ROJ' : 'VER'}</Text>
-      <Field label="ALIAS">
+      <Text style={[s.cardTitle, { color }]}>Tirador {FENCER_LABEL[lado === 'A' ? 'ROJ' : 'VER']}</Text>
+      <Field label="Alias">
         <TextInput testID={`${id}-alias`} style={s.input} value={value.alias}
           onChangeText={alias => set({ alias })} placeholderTextColor={C.textMuted} />
       </Field>
-      <Field label="BRAZO ARMADO">
+      <Field label="Brazo armado">
         <Choice testID={`${id}-brazo`} value={value.brazo} onChange={brazo => set({ brazo })}
-          options={[{ value: 'right', label: 'DIESTRO' }, { value: 'left', label: 'ZURDO' }]} />
+          options={[{ value: 'right', label: 'Diestro' }, { value: 'left', label: 'Zurdo' }]} />
       </Field>
-      <Field label="MENOR DE EDAD">
+      <Field label="Menor de edad">
         <Choice testID={`${id}-menor`} value={value.esMenor} onChange={esMenor => set({ esMenor })}
-          options={[{ value: false, label: 'NO' }, { value: true, label: 'SÍ' }]} />
+          options={[{ value: false, label: 'No' }, { value: true, label: 'Sí' }]} />
       </Field>
-      <Field label="CONSENTIMIENTO FIRMADO">
+      <Field label="Consentimiento firmado">
         <Choice testID={`${id}-firmado`} value={value.firmado} onChange={firmado => set({ firmado })}
-          options={[{ value: false, label: 'NO' }, { value: true, label: 'SÍ' }]} />
+          options={[{ value: false, label: 'No' }, { value: true, label: 'Sí' }]} />
       </Field>
       {value.firmado && (
-        <Field label="FECHA DEL CONSENTIMIENTO (AAAA-MM-DD)">
+        <Field label="Fecha del consentimiento (AAAA-MM-DD)">
           <TextInput testID={`${id}-fecha`} style={s.input} value={value.fecha}
             onChangeText={fecha => set({ fecha })} placeholder="2026-10-05" placeholderTextColor={C.textMuted} />
         </Field>
       )}
       {value.firmado && value.esMenor === true && (
-        <Field label="FIRMANTE (APODERADO)">
+        <Field label="Firmante (apoderado)">
           <TextInput testID={`${id}-firmante`} style={s.input} value={value.firmante}
             onChangeText={firmante => set({ firmante })} placeholderTextColor={C.textMuted} />
         </Field>
@@ -111,22 +116,23 @@ function TiradorSection({ lado, value, onChange }: {
   );
 }
 
-function Selector({ testID, items, value, onChange, vacio }: {
+function Selector({ testID, items, value, onChange, vacio, cargando }: {
   testID: string;
   items: { id: string; label: string }[];
   value: string | null;
   onChange: (id: string) => void;
   vacio: string;
+  cargando: boolean;
 }) {
   const C = useC();
   const s = useMemo(() => styles(C), [C]);
-  if (items.length === 0) return <Text style={s.hint}>{vacio}</Text>;
+  if (items.length === 0) return <Text style={s.hint}>{cargando ? 'Cargando…' : `${vacio}. Pulsa Recargar cuando existan.`}</Text>;
   return (
     <View style={s.choiceRow}>
       {items.map(i => (
         <TouchableOpacity key={i.id} testID={`${testID}-${i.id}`}
           style={[s.choice, value === i.id && s.choiceOn]} onPress={() => onChange(i.id)}>
-          <Text style={[s.choiceText, value === i.id && s.choiceTextOn]}>{i.label}</Text>
+          <Text style={[s.choiceText, value === i.id && s.choiceTextOn]}>{value === i.id ? '✓ ' : ''}{i.label}</Text>
         </TouchableOpacity>
       ))}
     </View>
@@ -141,6 +147,7 @@ export function ConfigScreen() {
   const [eventos, setEventos]   = useState<EventoCatalogo[]>([]);
   const [arbitros, setArbitros] = useState<UsuarioCatalogo[]>([]);
   const [catalogoError, setCatalogoError] = useState<string | null>(null);
+  const [cargandoCatalogo, setCargandoCatalogo] = useState(true);
 
   const [eventoId, setEventoId]   = useState<string | null>(null);
   const [arbitroId, setArbitroId] = useState<string | null>(null);
@@ -151,13 +158,18 @@ export function ConfigScreen() {
   const [enviando, setEnviando] = useState(false);
   const [error, setError]       = useState<string | null>(null);
 
-  useEffect(() => {
+  const cargarCatalogo = useCallback(() => {
     let activo = true;
+    setCatalogoError(null);
+    setCargandoCatalogo(true);
     Promise.all([getEventos(), getArbitros()])
       .then(([ev, ar]) => { if (activo) { setEventos(ev); setArbitros(ar); } })
-      .catch(e => { if (activo) setCatalogoError(e instanceof Error ? e.message : 'No se pudo leer el catálogo'); });
+      .catch(e => { if (activo) setCatalogoError(e instanceof Error ? e.message : 'No se pudo leer el catálogo'); })
+      .finally(() => { if (activo) setCargandoCatalogo(false); });
     return () => { activo = false; };
   }, []);
+
+  useEffect(() => cargarCatalogo(), [cargarCatalogo]);
 
   async function handleCrear() {
     const falta =
@@ -190,11 +202,13 @@ export function ConfigScreen() {
     }
   }
 
+  useShortcut({ tecla: 'Enter', ctrl: true, activo: !enviando }, handleCrear);
+
   return (
     <ScrollView style={s.root} contentContainerStyle={s.content}>
       {combate && (
         <View testID="combate-activo" style={[s.card, { borderColor: C.green }]}>
-          <Text style={[s.cardTitle, { color: C.green }]}>COMBATE ACTIVO</Text>
+          <Text style={[s.cardTitle, { color: C.green }]}>Combate activo</Text>
           <Text style={s.value}>Pista {combate.pista} · Árbitro {combate.arbitro}</Text>
           <Text style={s.value}>
             A · {combate.aliasA} ({combate.brazoA === 'right' ? 'diestro' : 'zurdo'}) vs B · {combate.aliasB} ({combate.brazoB === 'right' ? 'diestro' : 'zurdo'})
@@ -202,19 +216,38 @@ export function ConfigScreen() {
         </View>
       )}
 
-      <Text style={s.section}>{combate ? 'NUEVO COMBATE' : 'CONFIGURAR COMBATE'}</Text>
-      {catalogoError && <Text testID="catalogo-error" style={s.error}>{catalogoError}</Text>}
+      <Text style={s.section}>{combate ? 'Nuevo combate' : 'Configurar combate'}</Text>
+      {cargandoCatalogo && (
+        <StateMessage testID="catalogo-cargando" tipo="cargando" titulo="Cargando eventos y árbitros…" />
+      )}
+      {catalogoError && (
+        <StateMessage
+          testID="catalogo-error" tipo="error"
+          titulo="No se pudo cargar el catálogo"
+          siguiente={`${catalogoError}. Comprueba la conexión con el Fog e inténtalo de nuevo.`}
+          accion={{ label: 'Reintentar', onPress: cargarCatalogo }}
+        />
+      )}
+      {!cargandoCatalogo && !catalogoError && (eventos.length === 0 || arbitros.length === 0) && (
+        <StateMessage
+          testID="catalogo-vacio" tipo="vacio"
+          titulo={eventos.length === 0 && arbitros.length === 0 ? 'No hay eventos ni árbitros registrados'
+            : eventos.length === 0 ? 'No hay eventos registrados' : 'No hay árbitros registrados'}
+          siguiente="Sin ellos no se puede crear el combate. Regístralos y vuelve a cargar."
+          accion={{ label: 'Recargar', onPress: cargarCatalogo }}
+        />
+      )}
 
       <View style={s.card}>
-        <Field label="EVENTO">
-          <Selector testID="evento" value={eventoId} onChange={setEventoId} vacio="No hay eventos registrados"
+        <Field label="Evento">
+          <Selector testID="evento" value={eventoId} onChange={setEventoId} vacio="No hay eventos registrados" cargando={cargandoCatalogo}
             items={eventos.map(e => ({ id: e.id, label: `${e.nombre} · ${e.fecha}` }))} />
         </Field>
-        <Field label="PISTA">
+        <Field label="Pista">
           <TextInput testID="pista" style={s.input} value={pista} onChangeText={setPista} placeholderTextColor={C.textMuted} />
         </Field>
-        <Field label="ÁRBITRO">
-          <Selector testID="arbitro" value={arbitroId} onChange={setArbitroId} vacio="No hay árbitros registrados"
+        <Field label="Árbitro">
+          <Selector testID="arbitro" value={arbitroId} onChange={setArbitroId} vacio="No hay árbitros registrados" cargando={cargandoCatalogo}
             items={arbitros.map(u => ({ id: u.id, label: u.nombre }))} />
         </Field>
       </View>
@@ -222,35 +255,41 @@ export function ConfigScreen() {
       <TiradorSection lado="A" value={a} onChange={setA} />
       <TiradorSection lado="B" value={b} onChange={setB} />
 
-      {error && <Text testID="config-error" style={s.error}>{error}</Text>}
-      <TouchableOpacity testID="crear-combate-btn" style={[s.submit, enviando && { opacity: 0.5 }]}
-        onPress={handleCrear} disabled={enviando}>
-        <Text style={s.submitText}>{enviando ? 'CREANDO…' : 'CREAR COMBATE'}</Text>
-      </TouchableOpacity>
+      {error && (
+        <StateMessage
+          testID="config-error" tipo="error" titulo={error}
+          siguiente="Corrige el dato y vuelve a pulsar Crear combate."
+        />
+      )}
+      <Button
+        testID="crear-combate-btn" variant="primary"
+        label={enviando ? 'Creando…' : 'Crear combate'} shortcut="Ctrl+Intro"
+        onPress={handleCrear} disabled={enviando}
+      />
     </ScrollView>
   );
 }
 
 const styles = (C: ReturnType<typeof useC>) => StyleSheet.create({
   root:    { flex: 1, backgroundColor: C.bg },
-  content: { padding: 16, gap: 10, maxWidth: 720, alignSelf: 'center', width: '100%' },
-  section: { color: C.textMuted, fontSize: 10, fontWeight: '700', letterSpacing: 1, marginTop: 6 },
-  card: { backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 6, padding: 14, gap: 10 },
-  cardTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1 },
-  field: { gap: 4 },
-  label: { color: C.textMuted, fontSize: 9, fontWeight: '700', letterSpacing: 0.8 },
-  value: { color: C.text, fontSize: 12 },
-  hint: { color: C.textMuted, fontSize: 11 },
+  content: { padding: space(4), gap: space(3), maxWidth: 720, alignSelf: 'center', width: '100%' },
+  section: { color: C.text, fontSize: FONT.lg, fontWeight: '700', marginTop: space(1) },
+  card: { backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: RADIUS.md, padding: space(4), gap: space(3) },
+  cardTitle: { fontSize: FONT.md, fontWeight: '800' },
+  field: { gap: space(1) },
+  label: { color: C.textMuted, fontSize: FONT.xs, fontWeight: '600' },
+  value: { color: C.text, fontSize: FONT.sm },
+  hint: { color: C.textMuted, fontSize: FONT.sm },
   input: {
-    color: C.text, fontSize: 13, backgroundColor: C.surface,
-    borderWidth: 1, borderColor: C.border, borderRadius: 4, paddingHorizontal: 10, paddingVertical: 7,
+    color: C.text, fontSize: FONT.md, backgroundColor: C.surface, minHeight: CONTROL_HEIGHT,
+    borderWidth: 1, borderColor: C.borderBright, borderRadius: RADIUS.md, paddingHorizontal: space(3),
   },
-  choiceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  choice: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface },
+  choiceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space(2) },
+  choice: {
+    minHeight: CONTROL_HEIGHT, justifyContent: 'center', paddingHorizontal: space(4),
+    borderRadius: RADIUS.md, borderWidth: 1, borderColor: C.borderBright, backgroundColor: C.surface,
+  },
   choiceOn: { borderColor: C.cyan, backgroundColor: C.cyan + '22' },
-  choiceText: { color: C.textMuted, fontSize: 11, fontWeight: '700' },
+  choiceText: { color: C.textMuted, fontSize: FONT.sm, fontWeight: '700' },
   choiceTextOn: { color: C.text },
-  error: { color: C.red, fontSize: 12 },
-  submit: { backgroundColor: C.cyan, borderRadius: 4, paddingVertical: 12, alignItems: 'center', marginTop: 4 },
-  submitText: { color: '#000', fontSize: 13, fontWeight: '800', letterSpacing: 1 },
 });
