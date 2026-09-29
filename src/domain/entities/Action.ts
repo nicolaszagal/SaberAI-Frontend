@@ -1,6 +1,9 @@
 import type { FencerColor } from './Fencer';
 
-export type ActionClass = 'AttackA' | 'AttackB' | 'ResponseA' | 'ResponseB';
+export type ActionClass =
+  | 'AttackA' | 'AttackB'
+  | 'ContrattackA' | 'ContrattackB'
+  | 'RiposteA' | 'RiposteB';
 
 export interface HistorialEntry {
   id: string;

@@ -46,9 +46,30 @@ test('flujo completo: upload → analizar → veredicto en ActionPanel', async (
   await page.getByTestId('analizar-btn').click();
 
   await expect(page.getByTestId('fencer-name')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('fencer-name')).toHaveText('A · ROJ');
   await expect(page.getByTestId('action-label')).toHaveText('ATAQUE');
   await expect(page.getByTestId('confidence-value')).toHaveText('92%');
   await expect(page.getByTestId('status-done')).toBeVisible();
+});
+
+test('traduce Contraataque y Riposte, y muestra el tirador del lado B', async ({ page }) => {
+  await page.route('**/matches/*/clip', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ...MOCK_VERDICT, fencer: 'VER', action: 'ContrattackB', confidence: 0.55,
+      }),
+    }),
+  );
+  await page.goto('/live');
+
+  await page.getByTestId('file-input').setInputFiles(FIXTURE);
+  await page.getByTestId('analizar-btn').click();
+
+  await expect(page.getByTestId('fencer-name')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('fencer-name')).toHaveText('B · VER');
+  await expect(page.getByTestId('action-label')).toHaveText('CONTRAATAQUE');
 });
 
 test('veredicto queda registrado en HistorialPanel', async ({ page }) => {

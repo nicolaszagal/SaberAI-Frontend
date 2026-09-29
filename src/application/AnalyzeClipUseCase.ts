@@ -1,12 +1,6 @@
 import type { CurrentActionData, HistorialEntry } from '../domain/entities/Action';
-import type { FencerColor } from '../domain/entities/Fencer';
 import { uploadClip } from '../infrastructure/api/fogApi';
-import { translateAction, scaleConfidence, formatTimestamp } from './mappers/actionMapper';
-
-const FENCER_NAMES: Record<FencerColor, string> = {
-  ROJ: 'K. TANAKA',
-  VER: 'A. MORENO',
-};
+import { translateAction, scaleConfidence, formatTimestamp, formatFencerLabel } from './mappers/actionMapper';
 
 let entryCounter = 200;
 
@@ -40,10 +34,10 @@ export async function analyzeClip(input: AnalyzeClipInput): Promise<AnalyzeClipO
   return {
     action: {
       fencer,
-      fencerName: FENCER_NAMES[fencer] ?? fencer,
+      fencerName: formatFencerLabel(result.action, fencer),
       action,
       confidence: conf,
-      model: 'sabre-lstm-4class',
+      model: 'sabre-lstm-6class',
       latencyMs,
     },
     entry: {
