@@ -1,45 +1,129 @@
 import { FOG_BASE_URL } from '../config';
+import type { VeredictoRegistrado } from '../../domain/entities/Action';
 import type { FencerColor } from '../../domain/entities/Fencer';
 import type {
-  ConfigCombateInput, EventoCatalogo, HealthResponse, ModeloActivo,
-  RevisionResumen, TiradorConfig, UsuarioCatalogo,
+  BrazoArmado, CombateActivo, ConfigCombateInput, Decision, EventoCatalogo, HealthResponse,
+  ModeloActivo, RevisionResumen, TiradorConfig, UsuarioCatalogo,
 } from '../../domain/entities/Combate';
 
 export interface ClipUploadResponse {
   match_id: string;
+  revision_id: string;
   has_luz_A: boolean;
   has_luz_B: boolean;
   timed_out: boolean;
-  fencer?: FencerColor;
-  action?: string;
-  confidence?: number;
+  disponible: boolean;
+  motivo: string | null;
+  fencer?: FencerColor | null;
+  action?: string | null;
+  confidence?: number | null;
 }
 
+/** Mensaje de error de una respuesta no exitosa: `detail` del Fog si viene, si no el texto crudo. */
+async function errorDeRespuesta(res: Response): Promise<Error> {
+  const texto = await res.text();
+  let detalle = texto;
+  try {
+    const d = (JSON.parse(texto) as { detail?: unknown }).detail;
+    if (typeof d === 'string') detalle = d;
+  } catch { /* cuerpo no JSON: se usa el texto tal cual */ }
+  return new Error(`Fog ${res.status}: ${detalle}`);
+}
+
+/**
+ * POST /matches/{match_id}/clip (CU-02, CU-03). Abre una revisión y devuelve la sugerencia.
+ *
+ * Args:
+ *   matchId: id del combate activo.
+ *   file: clip MP4/MOV.
+ *   hasLuzA: luz Favero simulada de A.
+ *   hasLuzB: luz Favero simulada de B.
+ *   tTocadoMs: instante del tocado en ms desde el inicio del clip.
+ *   signal: permite abandonar la espera (límite de 60 s, RNF-04).
+ *
+ * Raises:
+ *   Error: si el Fog responde con error o no hay conexión.
+ */
 export async function uploadClip(
   matchId: string,
   file: File,
   hasLuzA: boolean,
   hasLuzB: boolean,
-  tTocadoMs?: number,
+  tTocadoMs: number,
+  signal?: AbortSignal,
 ): Promise<ClipUploadResponse> {
   const body = new FormData();
   body.append('file', file);
-  // has_luz_A/has_luz_B (DEF-14): reemplaza al alias obsoleto luz_frame_a/b,
-  // que reducía la señal a un booleano vía "se envió o no un índice de
-  // frame" y no dejaba lugar para reportar el instante del tocado (RF-02).
+  // has_luz_A/has_luz_B (DEF-14): reemplaza al alias obsoleto luz_frame_a/b.
   body.append('has_luz_A', String(hasLuzA));
   body.append('has_luz_B', String(hasLuzB));
-  if (tTocadoMs != null) body.append('t_tocado_ms', String(tTocadoMs));
+  body.append('t_tocado_ms', String(tTocadoMs));
 
   const res = await fetch(
     `${FOG_BASE_URL}/matches/${encodeURIComponent(matchId)}/clip`,
-    { method: 'POST', body },
+    { method: 'POST', body, signal },
   );
-
-  if (!res.ok) {
-    throw new Error(`Fog ${res.status}: ${await res.text()}`);
-  }
+  if (!res.ok) throw await errorDeRespuesta(res);
   return res.json() as Promise<ClipUploadResponse>;
+}
+
+/** Cuerpo de POST /revisiones/{id}/veredicto. `clase_final` va con mantener y cambiar, nunca con anular. */
+export interface VeredictoInput {
+  decision: Decision;
+  claseFinal: string | null;
+  arbitroId: string;
+}
+
+/**
+ * POST /revisiones/{revision_id}/veredicto (CU-10, F-033).
+ *
+ * Raises:
+ *   Error: si el Fog rechaza el veredicto (404, 409, 422) o no hay conexión.
+ */
+export async function postVeredicto(revisionId: string, input: VeredictoInput): Promise<VeredictoRegistrado> {
+  const res = await fetch(`${FOG_BASE_URL}/revisiones/${encodeURIComponent(revisionId)}/veredicto`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      decision: input.decision,
+      ...(input.claseFinal ? { clase_final: input.claseFinal } : {}),
+      arbitro_id: input.arbitroId,
+    }),
+  });
+  if (!res.ok) throw await errorDeRespuesta(res);
+  const b = (await res.json()) as { decision: Decision; clase_final: string | null };
+  return { decision: b.decision, claseFinal: b.clase_final };
+}
+
+interface CombateDto {
+  match_id: string;
+  pista: string;
+  arbitro_id: string;
+  arbitro: string;
+  alias_A: string;
+  weapon_side_A: BrazoArmado;
+  alias_B: string;
+  weapon_side_B: BrazoArmado;
+}
+
+/**
+ * GET /matches/{match_id}: valida el combate activo recordado.
+ *
+ * Returns:
+ *   El combate, o null si el Fog responde 404 (no existe).
+ *
+ * Raises:
+ *   Error: con cualquier otro fallo (sin conexión, 5xx): el combate no se descarta.
+ */
+export async function getCombate(matchId: string): Promise<CombateActivo | null> {
+  const res = await fetch(`${FOG_BASE_URL}/matches/${encodeURIComponent(matchId)}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw await errorDeRespuesta(res);
+  const c = (await res.json()) as CombateDto;
+  return {
+    matchId: c.match_id, pista: c.pista, arbitroId: c.arbitro_id, arbitro: c.arbitro,
+    aliasA: c.alias_A, aliasB: c.alias_B, brazoA: c.weapon_side_A, brazoB: c.weapon_side_B,
+  };
 }
 
 async function getJson<T>(path: string): Promise<T> {
