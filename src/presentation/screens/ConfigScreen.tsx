@@ -190,7 +190,7 @@ export function ConfigScreen() {
              consentimientoFecha: b.fecha.trim() || null, firmante: b.firmante.trim() || null },
       });
       setCombate({
-        matchId, pista: pista.trim(),
+        matchId, pista: pista.trim(), arbitroId: arbitroId!,
         arbitro: arbitros.find(x => x.id === arbitroId)!.nombre,
         aliasA: a.alias.trim(), aliasB: b.alias.trim(),
         brazoA: a.brazo!, brazoB: b.brazo!,

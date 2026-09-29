@@ -29,7 +29,7 @@ interface Props {
 export function AppHeader({ screen, onNavigate }: Props) {
   const C = useC();
   const { theme, toggleTheme } = useTheme();
-  const { combate } = useCombat();
+  const { combate, finalizarCombate } = useCombat();
   const conexion = useHealth();
   const s = useMemo(() => styles(C), [C]);
   const conexionColor =
@@ -61,6 +61,14 @@ export function AppHeader({ screen, onNavigate }: Props) {
           <>
             <Text testID="header-pista" style={s.meta}>Pista {combate.pista}</Text>
             <Text testID="header-arbitro" style={s.meta}>Árbitro: {combate.arbitro}</Text>
+            <TouchableOpacity
+              testID="finalizar-combate-btn"
+              accessibilityRole="button"
+              style={s.themeBtn}
+              onPress={() => { finalizarCombate(); onNavigate('config'); }}
+            >
+              <Text style={s.themeLabel}>Finalizar combate</Text>
+            </TouchableOpacity>
           </>
         )}
         <View testID="health-indicator" style={s.healthChip}>
