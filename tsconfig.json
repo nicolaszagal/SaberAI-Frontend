@@ -3,5 +3,5 @@
   "compilerOptions": {
     "strict": true
   },
-  "exclude": ["node_modules", "e2e"]
+  "exclude": ["node_modules", "e2e", "validacion2"]
 }

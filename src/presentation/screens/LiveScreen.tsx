@@ -4,10 +4,12 @@ import { useC } from '../context/ThemeContext';
 import { HistorialPanel } from '../components/HistorialPanel';
 import { ActionPanel } from '../components/ActionPanel';
 import { useSession } from '../context/SessionContext';
+import { useCombat } from '../context/CombatContext';
 
 export function LiveScreen() {
   const C = useC();
   const s = useMemo(() => styles(C), [C]);
+  const { combate } = useCombat();
   const { submitClip, sessionStatus, errorMessage, resetSession } = useSession();
 
   const [hasLuzA, setHasLuzA]   = useState(false);
@@ -34,14 +36,14 @@ export function LiveScreen() {
   }
 
   async function handleAnalyze() {
-    if (!clipFile || sessionStatus === 'analyzing') return;
-    await submitClip(clipFile, hasLuzA, hasLuzB);
+    if (!clipFile || !combate || sessionStatus === 'analyzing') return;
+    await submitClip(clipFile, hasLuzA, hasLuzB, combate);
   }
 
   const isAnalyzing = sessionStatus === 'analyzing';
   const isDone      = sessionStatus === 'done';
   const isError     = sessionStatus === 'error';
-  const isAnalyzeDisabled = !clipFile || isAnalyzing;
+  const isAnalyzeDisabled = !clipFile || !combate || isAnalyzing;
 
   const luzHint = hasLuzA && hasLuzB ? 'AMBAS LUCES' : hasLuzA ? 'LUZ A' : hasLuzB ? 'LUZ B' : 'SIN LUZ';
 
@@ -129,6 +131,11 @@ export function LiveScreen() {
           {fileName ?? 'Ningún archivo seleccionado'}
         </Text>
 
+        {!combate && (
+          <Text testID="sin-combate" style={[s.statusText, { color: C.orange }]} numberOfLines={1}>
+            Configura un combate para iniciar la revisión
+          </Text>
+        )}
         {isError && errorMessage && (
           <Text testID="status-error" style={[s.statusText, { color: C.red }]} numberOfLines={1}>
             {errorMessage}

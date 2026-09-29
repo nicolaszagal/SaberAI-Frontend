@@ -5,18 +5,18 @@ import { StatusBar } from 'expo-status-bar';
 import * as ScreenOrientation from 'expo-screen-orientation';
 
 import { ThemeProvider, useC } from './src/presentation/context/ThemeContext';
+import { CombatProvider } from './src/presentation/context/CombatContext';
 import { SessionProvider } from './src/presentation/context/SessionContext';
 import { AppHeader } from './src/presentation/components/AppHeader';
 import { DashboardScreen } from './src/presentation/screens/DashboardScreen';
 import { LiveScreen } from './src/presentation/screens/LiveScreen';
-import { CamerasScreen } from './src/presentation/screens/CamerasScreen';
 import { ConfigScreen } from './src/presentation/screens/ConfigScreen';
 import { HistoryScreen } from './src/presentation/screens/HistoryScreen';
-import { TournamentScreen } from './src/presentation/screens/TournamentScreen';
 
-export type Screen = 'dashboard' | 'live' | 'cameras' | 'config' | 'history' | 'tournament';
+// Validación 1: CamerasScreen y TournamentScreen quedan aparcadas en validacion2/.
+export type Screen = 'dashboard' | 'live' | 'config' | 'history';
 
-const SCREENS: Screen[] = ['dashboard', 'live', 'cameras', 'config', 'history', 'tournament'];
+const SCREENS: Screen[] = ['dashboard', 'live', 'config', 'history'];
 
 /** Mapea un pathname de navegador a la pantalla correspondiente (web only). */
 function screenFromPath(pathname: string): Screen {
@@ -69,26 +69,15 @@ function Inner() {
     setScreen(next);
   }, []);
 
-  // ── Back (uses browser history on web) ───────────────────────────────────
-  const goBack = useCallback(() => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      window.history.back();   // triggers popstate → setScreen('dashboard')
-    } else {
-      setScreen('dashboard');
-    }
-  }, []);
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }} edges={['top', 'bottom', 'left', 'right']}>
       <StatusBar style="auto" />
-      <AppHeader screen={screen} onBack={goBack} />
+      <AppHeader screen={screen} onNavigate={navigate} />
       <View style={styles.body}>
         {screen === 'dashboard' && <DashboardScreen onNavigate={navigate} />}
         {screen === 'live'      && <LiveScreen />}
-        {screen === 'cameras'   && <CamerasScreen />}
         {screen === 'config'     && <ConfigScreen />}
         {screen === 'history'    && <HistoryScreen />}
-        {screen === 'tournament' && <TournamentScreen />}
       </View>
     </SafeAreaView>
   );
@@ -100,9 +89,11 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <SessionProvider>
-          <Inner />
-        </SessionProvider>
+        <CombatProvider>
+          <SessionProvider>
+            <Inner />
+          </SessionProvider>
+        </CombatProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );
