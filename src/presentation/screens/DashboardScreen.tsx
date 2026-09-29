@@ -44,7 +44,7 @@ interface Props {
 export function DashboardScreen({ onNavigate }: Props) {
   const C = useC();
   const s = useMemo(() => styles(C), [C]);
-  const { historial } = useSession();
+  const { analizadas } = useSession();
   const { combate } = useCombat();
   const [modelo, setModelo] = useState<string | null>(null);
 
@@ -70,7 +70,7 @@ export function DashboardScreen({ onNavigate }: Props) {
           <Tile
             testID="tile-history"
             title="Historial"
-            main={`${historial.length} en esta sesión`}
+            main={`${analizadas} en esta sesión`}
             hint="Consulta las revisiones registradas."
             accent={C.green}
             onPress={() => onNavigate('history')}

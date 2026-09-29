@@ -4,6 +4,7 @@ export type BrazoArmado = 'right' | 'left';
 export interface CombateActivo {
   matchId: string;
   pista: string;
+  arbitroId: string;
   arbitro: string;
   aliasA: string;
   aliasB: string;
@@ -62,3 +63,6 @@ export interface RevisionResumen {
   decision: string | null;
   claseFinal: string | null;
 }
+
+/** Valores de `decision` del veredicto (CONTRATO_API 7.1). */
+export type Decision = 'mantener' | 'cambiar' | 'anular';

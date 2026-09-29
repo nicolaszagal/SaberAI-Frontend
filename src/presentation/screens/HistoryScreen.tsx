@@ -8,7 +8,7 @@ import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useC } from '../context/ThemeContext';
 import { StateMessage } from '../components/StateMessage';
 import { getRevisiones } from '../../infrastructure/api/fogApi';
-import { translateAction, scaleConfidence } from '../../application/mappers/actionMapper';
+import { translateAction, scaleConfidence, etiquetaDecision } from '../../application/mappers/actionMapper';
 import type { RevisionResumen } from '../../domain/entities/Combate';
 import { FONT, RADIUS, space } from '../theme/tokens';
 import type { Screen } from '../../../App';
@@ -82,7 +82,7 @@ export function HistoryScreen({ onNavigate }: Props) {
           <View style={s.cell}>
             <Text style={s.cellLabel}>Veredicto del árbitro</Text>
             <Text style={s.cellValue}>
-              {r.decision ? `${r.decision}${r.claseFinal ? `  ·  ${claseLegible(r.claseFinal)}` : ''}` : 'Pendiente'}
+              {r.decision ? `${etiquetaDecision(r.decision)}${r.claseFinal ? `  ·  ${claseLegible(r.claseFinal)}` : ''}` : 'Pendiente'}
             </Text>
           </View>
         </View>

@@ -1,5 +1,5 @@
 import { test, type Page } from '@playwright/test';
-import { mockApi, configurarCombate, EVENTO_ID } from './helpers';
+import { mockApi, configurarCombate, mockClip, analizarClip, CLIP_OK, EVENTO_ID } from './helpers';
 
 /**
  * Capturas de cada pantalla para adjuntar al PR (U02). Solo corren con
@@ -17,7 +17,7 @@ const REVISION = {
   id: 'r1', combate_id: 'c1', abierta_en: '2026-10-01T15:00:00Z', cerrada_en: null,
   disponible: true, clase: 'RiposteB', confianza: 0.74, decision: null, clase_final: null,
 };
-const VEREDICTO = { match_id: 'm', has_luz_A: false, has_luz_B: true, timed_out: false, fencer: 'VER', action: 'RiposteB', confidence: 0.74 };
+const VEREDICTO = { ...CLIP_OK, has_luz_A: false, has_luz_B: true, fencer: 'VER', action: 'RiposteB', confidence: 0.74 };
 
 async function aTema(page: Page, tema: 'claro' | 'oscuro') {
   if (tema === 'oscuro') await page.getByTestId('theme-toggle').click();
@@ -54,30 +54,25 @@ for (const t of TAMANOS) {
       });
 
       test('revisión VAR con sugerencia', async ({ page }) => {
-        await page.route('**/matches/*/clip', route => route.fulfill({
-          status: 200, contentType: 'application/json', body: JSON.stringify(VEREDICTO),
-        }));
+        await mockClip(page, VEREDICTO);
         await mockApi(page);
         await configurarCombate(page);
         await aTema(page, tema);
         await page.getByTestId('nav-live').click();
         await page.getByTestId('analizar-btn').waitFor();
         await page.screenshot({ path: base('02b-revision-lista') });
-        await page.getByTestId('luz-b-btn').click();
-        await page.getByTestId('file-input').setInputFiles(FIXTURE);
-        await page.getByTestId('analizar-btn').click();
+        await analizarClip(page, FIXTURE);
         await page.getByTestId('status-done').waitFor();
         await page.screenshot({ path: base('02c-revision-con-sugerencia') });
       });
 
       test('revisión VAR con error', async ({ page }) => {
-        await page.route('**/matches/*/clip', route => route.fulfill({ status: 500, contentType: 'text/plain', body: 'falla' }));
+        await mockClip(page, { detail: 'falla' }, 500);
         await mockApi(page);
         await configurarCombate(page);
         await aTema(page, tema);
         await page.getByTestId('nav-live').click();
-        await page.getByTestId('file-input').setInputFiles(FIXTURE);
-        await page.getByTestId('analizar-btn').click();
+        await analizarClip(page, FIXTURE);
         await page.getByTestId('status-error').waitFor();
         await page.screenshot({ path: base('02d-revision-error') });
       });
