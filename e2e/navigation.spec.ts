@@ -18,7 +18,7 @@ test('navegar a Revisión VAR desde Inicio', async ({ page }) => {
 
 test('la navegación tiene solo las 4 pantallas de la Validación 1', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('[data-testid^="nav-"]')).toHaveText(['INICIO', 'REVISIÓN VAR', 'HISTORIAL', 'COMBATE']);
+  await expect(page.locator('[data-testid^="nav-"]')).toHaveText(['Inicio', 'Revisión VAR', 'Historial', 'Combate']);
   await expect(page.getByText(/CÁMARAS|TORNEO/i)).toHaveCount(0);
 });
 

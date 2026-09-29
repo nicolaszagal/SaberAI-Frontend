@@ -7,8 +7,8 @@ test('el encabezado muestra pista y árbitro solo tras configurar el combate', a
   await expect(page.getByTestId('header-pista')).toHaveCount(0);
 
   await configurarCombate(page);
-  await expect(page.getByTestId('header-pista')).toHaveText('PISTA P1');
-  await expect(page.getByTestId('header-arbitro')).toHaveText('ÁRBITRO Árbitro Prueba');
+  await expect(page.getByTestId('header-pista')).toHaveText('Pista P1');
+  await expect(page.getByTestId('header-arbitro')).toHaveText('Árbitro: Árbitro Prueba');
 });
 
 test('exige el brazo armado y no crea el combate sin él', async ({ page }) => {
@@ -26,7 +26,7 @@ test('exige el brazo armado y no crea el combate sin él', async ({ page }) => {
 });
 
 test('indicador de conexión: conectado, degradado y sin conexión', async ({ page }) => {
-  for (const [health, texto] of [['ok', 'CONECTADO'], ['degradado', 'DEGRADADO'], ['caido', 'SIN CONEXIÓN']] as const) {
+  for (const [health, texto] of [['ok', 'Conectado'], ['degradado', 'Degradado'], ['caido', 'Sin conexión']] as const) {
     await page.unroute('**/health').catch(() => {});
     await mockApi(page, { health });
     await page.goto('/');

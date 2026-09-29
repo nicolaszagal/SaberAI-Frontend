@@ -3,10 +3,20 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native
 import { useC } from '../context/ThemeContext';
 import { HistorialPanel } from '../components/HistorialPanel';
 import { ActionPanel } from '../components/ActionPanel';
+import { Button } from '../components/Button';
+import { StateMessage } from '../components/StateMessage';
 import { useSession } from '../context/SessionContext';
 import { useCombat } from '../context/CombatContext';
+import { useShortcut } from '../hooks/useShortcut';
+import { FENCER_LABEL } from '../theme/fencer';
+import { CONTROL_HEIGHT, FONT, RADIUS, space } from '../theme/tokens';
+import type { Screen } from '../../../App';
 
-export function LiveScreen() {
+interface Props {
+  onNavigate: (screen: Screen) => void;
+}
+
+export function LiveScreen({ onNavigate }: Props) {
   const C = useC();
   const s = useMemo(() => styles(C), [C]);
   const { combate } = useCombat();
@@ -31,7 +41,7 @@ export function LiveScreen() {
   }
 
   function openFilePicker() {
-    if (Platform.OS !== 'web') return;
+    if (Platform.OS !== 'web' || isAnalyzing) return;
     fileInputRef.current?.click();
   }
 
@@ -45,7 +55,10 @@ export function LiveScreen() {
   const isError     = sessionStatus === 'error';
   const isAnalyzeDisabled = !clipFile || !combate || isAnalyzing;
 
-  const luzHint = hasLuzA && hasLuzB ? 'AMBAS LUCES' : hasLuzA ? 'LUZ A' : hasLuzB ? 'LUZ B' : 'SIN LUZ';
+  useShortcut({ tecla: 's', activo: !isAnalyzing }, openFilePicker);
+  useShortcut({ tecla: 'Enter', activo: !isAnalyzeDisabled }, handleAnalyze);
+
+  const luzHint = hasLuzA && hasLuzB ? 'Ambas luces' : hasLuzA ? 'Luz A' : hasLuzB ? 'Luz B' : 'Sin luz';
 
   return (
     <View style={s.root}>
@@ -61,26 +74,32 @@ export function LiveScreen() {
         />
       )}
 
-      {/* ── Barra de Luz Favero ── */}
+      {/* ── Luz Favero (señal simulada, D-12) ── */}
       <View style={s.luzBar}>
-        <Text style={s.luzLabel}>LUZ FAVERO</Text>
+        <Text style={s.luzLabel}>Luz Favero (simulada)</Text>
 
         <TouchableOpacity
           testID="luz-a-btn"
-          style={[s.luzBtn, hasLuzA && { backgroundColor: C.red + '30', borderColor: C.red }]}
+          accessibilityRole="button"
+          accessibilityState={{ selected: hasLuzA }}
+          style={[s.luzBtn, hasLuzA && { backgroundColor: C.red + '22', borderColor: C.red }]}
           onPress={() => setHasLuzA(v => !v)}
         >
-          <View style={[s.luzDot, { backgroundColor: hasLuzA ? C.red : C.border }]} />
-          <Text style={[s.luzBtnText, { color: hasLuzA ? C.red : C.textMuted }]}>ROJ</Text>
+          <Text style={[s.luzBtnText, { color: hasLuzA ? C.red : C.textMuted }]}>
+            {hasLuzA ? '● ' : '○ '}{FENCER_LABEL.ROJ}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           testID="luz-b-btn"
-          style={[s.luzBtn, hasLuzB && { backgroundColor: C.green + '30', borderColor: C.green }]}
+          accessibilityRole="button"
+          accessibilityState={{ selected: hasLuzB }}
+          style={[s.luzBtn, hasLuzB && { backgroundColor: C.green + '22', borderColor: C.green }]}
           onPress={() => setHasLuzB(v => !v)}
         >
-          <View style={[s.luzDot, { backgroundColor: hasLuzB ? C.green : C.border }]} />
-          <Text style={[s.luzBtnText, { color: hasLuzB ? C.green : C.textMuted }]}>VER</Text>
+          <Text style={[s.luzBtnText, { color: hasLuzB ? C.green : C.textMuted }]}>
+            {hasLuzB ? '● ' : '○ '}{FENCER_LABEL.VER}
+          </Text>
         </TouchableOpacity>
 
         <Text testID="luz-hint" style={s.luzHint}>{luzHint}</Text>
@@ -88,7 +107,6 @@ export function LiveScreen() {
 
       {/* ── Zona principal: video + historial ── */}
       <View style={s.contentZone}>
-        {/* Video player */}
         <View style={s.videoArea}>
           {Platform.OS === 'web' ? (
             videoSrc ? (
@@ -99,8 +117,8 @@ export function LiveScreen() {
               />
             ) : (
               <View style={s.videoPlaceholder}>
-                <Text style={s.videoPlaceholderIcon}>▶</Text>
-                <Text style={s.videoPlaceholderText}>Seleccioná un clip para analizar</Text>
+                <Text style={s.videoPlaceholderTitle}>Sin clip cargado</Text>
+                <Text style={s.videoPlaceholderText}>Pulsa «Seleccionar clip» (tecla S) para elegir un MP4 o MOV.</Text>
               </View>
             )
           ) : (
@@ -110,56 +128,61 @@ export function LiveScreen() {
           )}
         </View>
 
-        {/* Historial lateral */}
         <View style={s.historialArea}>
           <HistorialPanel />
         </View>
       </View>
 
+      {/* ── Avisos: sin combate, error o resultado ── */}
+      {!combate && (
+        <View style={s.notice}>
+          <StateMessage
+            testID="sin-combate" tipo="vacio"
+            titulo="No hay combate activo"
+            siguiente="Registra a los tiradores A y B para poder analizar un clip."
+            accion={{ label: 'Configurar combate', onPress: () => onNavigate('config') }}
+          />
+        </View>
+      )}
+      {isAnalyzing && (
+        <View style={s.notice}>
+          <StateMessage testID="status-analyzing" tipo="cargando" titulo="Analizando el clip…" siguiente="La sugerencia llega en menos de 60 s." />
+        </View>
+      )}
+      {isError && errorMessage && (
+        <View style={s.notice}>
+          <StateMessage
+            testID="status-error" tipo="error"
+            titulo="No se pudo analizar el clip"
+            siguiente={`${errorMessage.replace(/\.?\s*$/, '.')} Revisa el clip y vuelve a intentarlo.`}
+            accion={{ label: 'Reintentar', shortcut: 'Intro', onPress: handleAnalyze }}
+          />
+        </View>
+      )}
+
       {/* ── Barra de control ── */}
       <View style={s.controlBar}>
-        <TouchableOpacity
-          testID="select-clip-btn"
-          style={s.fileBtn}
-          onPress={openFilePicker}
-          disabled={isAnalyzing}
-        >
-          <Text style={s.fileBtnText}>📁  SELECCIONAR CLIP</Text>
-        </TouchableOpacity>
+        <Button testID="select-clip-btn" label="Seleccionar clip" shortcut="S" onPress={openFilePicker} disabled={isAnalyzing} />
 
         <Text testID="filename-display" style={s.fileNameText} numberOfLines={1}>
           {fileName ?? 'Ningún archivo seleccionado'}
         </Text>
 
-        {!combate && (
-          <Text testID="sin-combate" style={[s.statusText, { color: C.orange }]} numberOfLines={1}>
-            Configura un combate para iniciar la revisión
-          </Text>
-        )}
-        {isError && errorMessage && (
-          <Text testID="status-error" style={[s.statusText, { color: C.red }]} numberOfLines={1}>
-            {errorMessage}
-          </Text>
-        )}
         {isDone && (
-          <Text testID="status-done" style={[s.statusText, { color: C.green }]}>
-            ✓ Veredicto recibido
-          </Text>
+          <Text testID="status-done" style={[s.statusText, { color: C.green }]}>✓ Sugerencia recibida</Text>
         )}
 
-        <TouchableOpacity
+        <Button
           testID="analizar-btn"
-          style={[s.analyzeBtn, isAnalyzeDisabled && s.analyzeBtnDisabled]}
+          variant="primary"
+          label={isAnalyzing ? 'Analizando…' : 'Analizar'}
+          shortcut="Intro"
           onPress={handleAnalyze}
           disabled={isAnalyzeDisabled}
-        >
-          <Text style={[s.analyzeBtnText, isAnalyzeDisabled && { color: C.textMuted }]}>
-            {isAnalyzing ? '⏳  ANALIZANDO...' : '▶  ANALIZAR'}
-          </Text>
-        </TouchableOpacity>
+        />
       </View>
 
-      {/* ── Panel de acción (veredicto) ── */}
+      {/* ── Panel de sugerencia y decisión ── */}
       <ActionPanel />
     </View>
   );
@@ -169,62 +192,35 @@ const styles = (C: ReturnType<typeof useC>) => StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
 
   luzBar: {
-    height: 44, flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 14, gap: 10,
-    backgroundColor: C.surface,
-    borderBottomWidth: 1, borderBottomColor: C.border,
+    flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center',
+    paddingHorizontal: space(4), paddingVertical: space(2), gap: space(3),
+    backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border,
   },
-  luzLabel: { color: C.textMuted, fontSize: 9, fontWeight: '700', letterSpacing: 1 },
+  luzLabel: { color: C.textMuted, fontSize: FONT.sm, fontWeight: '600' },
   luzBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: 4, borderWidth: 1, borderColor: C.border,
+    minHeight: CONTROL_HEIGHT, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: space(4), borderRadius: RADIUS.md, borderWidth: 1, borderColor: C.borderBright,
     backgroundColor: C.card,
   },
-  luzDot:     { width: 8, height: 8, borderRadius: 4 },
-  luzBtnText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
-  luzHint:    { color: C.textDim, fontSize: 9, marginLeft: 4 },
+  luzBtnText: { fontSize: FONT.sm, fontWeight: '800' },
+  luzHint:    { color: C.text, fontSize: FONT.sm, fontWeight: '600' },
 
-  contentZone: { flex: 1, flexDirection: 'row' },
+  contentZone: { flex: 1, flexDirection: 'row', minHeight: 200 },
 
-  videoArea: {
-    flex: 3,
-    backgroundColor: '#000',
-    borderRightWidth: 1, borderRightColor: C.border,
-  },
-  videoPlaceholder: {
-    flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12,
-  },
-  videoPlaceholderIcon: { color: C.textDim, fontSize: 40 },
-  videoPlaceholderText: { color: C.textDim, fontSize: 13, letterSpacing: 0.3 },
+  videoArea: { flex: 3, backgroundColor: '#000', borderRightWidth: 1, borderRightColor: C.border },
+  videoPlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: space(2), padding: space(4) },
+  videoPlaceholderTitle: { color: '#ffffff', fontSize: FONT.lg, fontWeight: '700' },
+  videoPlaceholderText:  { color: '#d1d5db', fontSize: FONT.sm, textAlign: 'center' },
 
-  historialArea: { flex: 1.1 },
+  historialArea: { flex: 1.1, minWidth: 240 },
+
+  notice: { paddingHorizontal: space(4), paddingTop: space(3) },
 
   controlBar: {
-    height: 52, flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 12, gap: 10,
-    backgroundColor: C.surface,
-    borderTopWidth: 1, borderTopColor: C.border,
-    borderBottomWidth: 1, borderBottomColor: C.border,
+    flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center',
+    paddingHorizontal: space(4), paddingVertical: space(2), gap: space(3),
+    backgroundColor: C.surface, borderTopWidth: 1, borderTopColor: C.border,
   },
-  fileBtn: {
-    paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: 4, borderWidth: 1, borderColor: C.border,
-    backgroundColor: C.card,
-  },
-  fileBtnText: { color: C.text, fontSize: 11, fontWeight: '600' },
-  fileNameText: {
-    flex: 1, color: C.textMuted, fontSize: 10,
-  },
-  statusText: { fontSize: 10, fontWeight: '600' },
-  analyzeBtn: {
-    paddingHorizontal: 18, paddingVertical: 8,
-    borderRadius: 4, borderWidth: 1, borderColor: C.cyan,
-    backgroundColor: C.cyan + '20',
-  },
-  analyzeBtnDisabled: {
-    borderColor: C.border,
-    backgroundColor: C.card,
-  },
-  analyzeBtnText: { color: C.cyan, fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
+  fileNameText: { flex: 1, minWidth: 120, color: C.textMuted, fontSize: FONT.sm },
+  statusText:   { fontSize: FONT.sm, fontWeight: '700' },
 });

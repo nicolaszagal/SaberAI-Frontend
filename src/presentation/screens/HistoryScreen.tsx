@@ -3,12 +3,15 @@
  * Lista las revisiones registradas por el backend (GET /revisiones), de la más
  * reciente a la más antigua. Solo muestra campos que devuelve la API.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useC } from '../context/ThemeContext';
+import { StateMessage } from '../components/StateMessage';
 import { getRevisiones } from '../../infrastructure/api/fogApi';
 import { translateAction, scaleConfidence } from '../../application/mappers/actionMapper';
 import type { RevisionResumen } from '../../domain/entities/Combate';
+import { FONT, RADIUS, space } from '../theme/tokens';
+import type { Screen } from '../../../App';
 
 /** "ATAQUE · A" a partir del nombre de clase del modelo (p. ej. AttackA). */
 function claseLegible(clase: string | null): string {
@@ -20,40 +23,64 @@ function formatFecha(iso: string): string {
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString('es-PE');
 }
 
-export function HistoryScreen() {
+interface Props {
+  onNavigate: (screen: Screen) => void;
+}
+
+export function HistoryScreen({ onNavigate }: Props) {
   const C = useC();
   const s = useMemo(() => styles(C), [C]);
   const [revisiones, setRevisiones] = useState<RevisionResumen[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const cargar = useCallback(() => {
     let activo = true;
+    setError(null);
+    setRevisiones(null);
     getRevisiones()
       .then(r => { if (activo) setRevisiones(r); })
       .catch(e => { if (activo) setError(e instanceof Error ? e.message : 'No se pudo leer el historial'); });
     return () => { activo = false; };
   }, []);
 
+  useEffect(() => cargar(), [cargar]);
+
   return (
     <ScrollView style={s.root} contentContainerStyle={s.content}>
-      <Text style={s.title}>REVISIONES REGISTRADAS{revisiones ? ` · ${revisiones.length}` : ''}</Text>
+      <Text style={s.title}>Revisiones registradas{revisiones ? ` · ${revisiones.length}` : ''}</Text>
 
-      {error && <Text testID="historial-error" style={s.error}>{error}</Text>}
-      {!error && revisiones === null && <Text style={s.hint}>Cargando…</Text>}
-      {revisiones?.length === 0 && <Text testID="historial-vacio" style={s.hint}>Sin revisiones registradas</Text>}
+      {error && (
+        <StateMessage
+          testID="historial-error" tipo="error"
+          titulo="No se pudo cargar el historial"
+          siguiente={`${error}. Comprueba la conexión con el Fog e inténtalo de nuevo.`}
+          accion={{ label: 'Reintentar', onPress: cargar }}
+        />
+      )}
+      {!error && revisiones === null && (
+        <StateMessage testID="historial-cargando" tipo="cargando" titulo="Cargando revisiones…" />
+      )}
+      {revisiones?.length === 0 && (
+        <StateMessage
+          testID="historial-vacio" tipo="vacio"
+          titulo="Sin revisiones registradas"
+          siguiente="Cada clip que analizas abre una revisión y aparece aquí."
+          accion={{ label: 'Ir a Revisión VAR', onPress: () => onNavigate('live') }}
+        />
+      )}
 
       {revisiones?.map(r => (
         <View key={r.id} testID="revision-row" style={s.row}>
           <Text style={s.fecha}>{formatFecha(r.abiertaEn)}</Text>
           <View style={s.cell}>
-            <Text style={s.cellLabel}>SUGERENCIA</Text>
+            <Text style={s.cellLabel}>Sugerencia</Text>
             <Text style={s.cellValue}>
               {r.disponible ? claseLegible(r.clase) : 'No disponible'}
               {r.confianza != null ? `  ·  ${scaleConfidence(r.confianza)}%` : ''}
             </Text>
           </View>
           <View style={s.cell}>
-            <Text style={s.cellLabel}>VEREDICTO DEL ÁRBITRO</Text>
+            <Text style={s.cellLabel}>Veredicto del árbitro</Text>
             <Text style={s.cellValue}>
               {r.decision ? `${r.decision}${r.claseFinal ? `  ·  ${claseLegible(r.claseFinal)}` : ''}` : 'Pendiente'}
             </Text>
@@ -66,17 +93,15 @@ export function HistoryScreen() {
 
 const styles = (C: ReturnType<typeof useC>) => StyleSheet.create({
   root:    { flex: 1, backgroundColor: C.bg },
-  content: { padding: 16, gap: 8, maxWidth: 900, alignSelf: 'center', width: '100%' },
-  title:   { color: C.textMuted, fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 4 },
-  hint:    { color: C.textMuted, fontSize: 12 },
-  error:   { color: C.red, fontSize: 12 },
+  content: { padding: space(4), gap: space(2), maxWidth: 900, alignSelf: 'center', width: '100%' },
+  title:   { color: C.text, fontSize: FONT.lg, fontWeight: '700', marginBottom: space(1) },
   row: {
-    flexDirection: 'row', alignItems: 'center', gap: 16, flexWrap: 'wrap',
-    backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 6,
-    paddingHorizontal: 14, paddingVertical: 10,
+    flexDirection: 'row', alignItems: 'center', gap: space(4), flexWrap: 'wrap',
+    backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: RADIUS.md,
+    paddingHorizontal: space(4), paddingVertical: space(3),
   },
-  fecha:     { color: C.textMuted, fontSize: 11, width: 150 },
+  fecha:     { color: C.textMuted, fontSize: FONT.sm, width: 170 },
   cell:      { flex: 1, minWidth: 200, gap: 2 },
-  cellLabel: { color: C.textMuted, fontSize: 9, fontWeight: '700', letterSpacing: 0.8 },
-  cellValue: { color: C.text, fontSize: 13, fontWeight: '600' },
+  cellLabel: { color: C.textMuted, fontSize: FONT.xs, fontWeight: '600' },
+  cellValue: { color: C.text, fontSize: FONT.md, fontWeight: '600' },
 });

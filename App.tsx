@@ -75,9 +75,9 @@ function Inner() {
       <AppHeader screen={screen} onNavigate={navigate} />
       <View style={styles.body}>
         {screen === 'dashboard' && <DashboardScreen onNavigate={navigate} />}
-        {screen === 'live'      && <LiveScreen />}
+        {screen === 'live'      && <LiveScreen onNavigate={navigate} />}
         {screen === 'config'     && <ConfigScreen />}
-        {screen === 'history'    && <HistoryScreen />}
+        {screen === 'history'    && <HistoryScreen onNavigate={navigate} />}
       </View>
     </SafeAreaView>
   );

@@ -35,13 +35,13 @@ test('sin combate activo no se puede analizar', async ({ page }) => {
 });
 
 test('toggles de Luz Favero cambian estado visual', async ({ page }) => {
-  await expect(page.getByTestId('luz-hint')).toHaveText('SIN LUZ');
+  await expect(page.getByTestId('luz-hint')).toHaveText('Sin luz');
 
   await page.getByTestId('luz-a-btn').click();
-  await expect(page.getByTestId('luz-hint')).toHaveText('LUZ A');
+  await expect(page.getByTestId('luz-hint')).toHaveText('Luz A');
 
   await page.getByTestId('luz-b-btn').click();
-  await expect(page.getByTestId('luz-hint')).toHaveText('AMBAS LUCES');
+  await expect(page.getByTestId('luz-hint')).toHaveText('Ambas luces');
 });
 
 test('seleccionar un clip habilita el botón ANALIZAR', async ({ page }) => {

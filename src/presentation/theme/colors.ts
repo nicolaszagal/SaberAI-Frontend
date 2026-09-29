@@ -1,3 +1,11 @@
+/**
+ * Colores de la interfaz por tema. Todo color de texto de este archivo cumple
+ * contraste AA (4.5:1) sobre `bg`, `surface` y `card`; lo verifica
+ * `e2e/contraste.spec.ts`.
+ *
+ * `textDim` es solo para elementos no textuales (bordes de reposo, iconos
+ * inactivos). Nunca se usa como color de texto.
+ */
 export type ThemeColors = {
   bg: string; surface: string; card: string;
   border: string; borderBright: string;
@@ -6,6 +14,7 @@ export type ThemeColors = {
   red: string; redDark: string;
   cyan: string; orange: string;
   blue: string; blueDark: string;
+  primary: string; onPrimary: string;
   live: string; liveText: string;
   confirmBg: string; confirmText: string;
   anularBg: string; anularText: string;
@@ -14,31 +23,30 @@ export type ThemeColors = {
 
 export const DARK_THEME: ThemeColors = {
   bg: '#0a0a0a',        surface: '#111111',     card: '#161616',
-  border: '#222222',    borderBright: '#333333',
-  text: '#ffffff',      textMuted: '#888888',    textDim: '#3a3a3a',
+  border: '#2a2a2a',    borderBright: '#444444',
+  text: '#ffffff',      textMuted: '#a3a3a3',    textDim: '#4a4a4a',
   green: '#4ade80',     greenDark: '#166534',
   red: '#f87171',       redDark: '#991b1b',
   cyan: '#22d3ee',      orange: '#f59e0b',
-  blue: '#3b82f6',      blueDark: '#1e3a5f',
+  blue: '#60a5fa',      blueDark: '#1e3a5f',
+  primary: '#22d3ee',   onPrimary: '#001b22',
   live: '#dc2626',      liveText: '#fca5a5',
-  confirmBg: '#14532d', confirmText: '#4ade80',
-  anularBg: '#7f1d1d',  anularText: '#f87171',
-  manualBg: '#1e3a5f',  manualText: '#93c5fd',
+  confirmBg: '#14532d', confirmText: '#bbf7d0',
+  anularBg: '#7f1d1d',  anularText: '#fecaca',
+  manualBg: '#1e3a5f',  manualText: '#bfdbfe',
 };
 
 export const LIGHT_THEME: ThemeColors = {
   bg: '#f0f2f5',        surface: '#ffffff',      card: '#f8f9fa',
-  border: '#dde1e8',    borderBright: '#b8bec9',
-  text: '#111827',      textMuted: '#6b7280',    textDim: '#b0b7c3',
-  green: '#16a34a',     greenDark: '#14532d',
-  red: '#dc2626',       redDark: '#7f1d1d',
-  cyan: '#0891b2',      orange: '#d97706',
-  blue: '#2563eb',      blueDark: '#1e3a5f',
+  border: '#c9cfd8',    borderBright: '#8b93a1',
+  text: '#111827',      textMuted: '#4b5563',    textDim: '#b0b7c3',
+  green: '#166534',     greenDark: '#14532d',
+  red: '#b91c1c',       redDark: '#7f1d1d',
+  cyan: '#0e7490',      orange: '#9a4a08',
+  blue: '#1d4ed8',      blueDark: '#1e3a5f',
+  primary: '#0e7490',   onPrimary: '#ffffff',
   live: '#dc2626',      liveText: '#991b1b',
-  confirmBg: '#f0fdf4', confirmText: '#16a34a',
-  anularBg: '#fef2f2',  anularText: '#dc2626',
-  manualBg: '#eff6ff',  manualText: '#2563eb',
+  confirmBg: '#dcfce7', confirmText: '#14532d',
+  anularBg: '#fee2e2',  anularText: '#7f1d1d',
+  manualBg: '#dbeafe',  manualText: '#1e3a8a',
 };
-
-// Legacy default export (dark) — kept for any stray imports
-export const C = DARK_THEME;
