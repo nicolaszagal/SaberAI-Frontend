@@ -3,7 +3,7 @@ import { test, expect, type Page } from '@playwright/test';
 /**
  * Capturas del manual de usuario (DOC01) contra el sistema real: Fog, Cloud, Redis y
  * PostgreSQL levantados, sin API simulada. Recorre una sesión completa con tres revisiones
- * (mantener, cambiar y anular) y guarda una imagen por pantalla. Solo corre con
+ * (mantener, cambiar y anular, cada una con su pregunta y su resumen) y guarda una imagen por pantalla. Solo corre con
  * `CAPTURAS=1 SISTEMA_REAL=1 npx playwright test e2e/capturas-manual.spec.ts`.
  *
  * Variables: EVENTO_NOMBRE y ARBITRO_NOMBRE (existen en la base, ver
@@ -93,7 +93,10 @@ test('sesión completa del manual de usuario', async ({ page }) => {
   await foto(page, '06-revision-analizando');
   await page.getByTestId('status-done').waitFor({ timeout: 90_000 });
   await foto(page, '07-revision-sugerencia');
-  await page.getByTestId('veredicto-mantener').click();
+  await page.locator('[data-testid^="clase-"]').filter({ hasText: 'Sugerencia del sistema' }).click();
+  await page.getByTestId('cambia-no').click();
+  await page.getByTestId('resumen-decision').waitFor();
+  await page.getByTestId('veredicto-enviar').click();
   await page.getByTestId('veredicto-confirmado').waitFor();
   await foto(page, '08-revision-veredicto-registrado');
 
@@ -101,11 +104,13 @@ test('sesión completa del manual de usuario', async ({ page }) => {
   await prepararClip(page, CLIP_2, CLIP_2_T_MS, { a: true, b: true });
   await page.getByTestId('analizar-btn').click();
   await page.getByTestId('status-done').waitFor({ timeout: 90_000 });
-  await page.getByTestId('veredicto-cambiar').click();
   await page.getByTestId('selector-clase').waitFor();
-  await page.getByTestId('selector-cancelar').scrollIntoViewIfNeeded();
-  await foto(page, '09-revision-selector-clase');
   await page.getByTestId('clase-AttackA').click();
+  await page.getByTestId('cambia-si').click();
+  await page.getByTestId('resumen-decision').waitFor();
+  await page.getByTestId('veredicto-enviar').scrollIntoViewIfNeeded();
+  await foto(page, '09-revision-selector-clase');
+  await page.getByTestId('veredicto-enviar').click();
   await page.getByTestId('veredicto-confirmado').waitFor();
 
   // Revisión 3: sin tiradores detectables, "Clasificación no disponible"; el árbitro anula.
@@ -114,6 +119,7 @@ test('sesión completa del manual de usuario', async ({ page }) => {
   await page.getByTestId('no-disponible').waitFor({ timeout: 90_000 });
   await foto(page, '10-revision-no-disponible');
   await page.getByTestId('veredicto-anular').click();
+  await page.getByTestId('veredicto-enviar').click();
   await page.getByTestId('veredicto-confirmado').waitFor();
 
   // Historial y detalle.
