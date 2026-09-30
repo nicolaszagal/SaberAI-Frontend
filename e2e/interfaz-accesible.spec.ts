@@ -117,10 +117,11 @@ test.describe('estados con mensaje y acción siguiente', () => {
   test('historial: error con Reintentar que vuelve a consultar', async ({ page }) => {
     await mockApi(page);
     let ok = false;
-    await page.route('**/revisiones', route => ok
+    await configurarCombate(page);
+    await page.route(/\/revisiones(\?.*)?$/, route => ok
       ? route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
       : route.fulfill({ status: 500, contentType: 'text/plain', body: 'falla' }));
-    await page.goto('/history');
+    await page.getByTestId('nav-history').click();
     await expect(page.getByTestId('historial-error')).toContainText('No se pudo cargar el historial');
     ok = true;
     await page.getByTestId('historial-error').getByRole('button', { name: /Reintentar/ }).click();
@@ -130,11 +131,12 @@ test.describe('estados con mensaje y acción siguiente', () => {
 
   test('historial: cargando', async ({ page }) => {
     await mockApi(page);
-    await page.route('**/revisiones', async route => {
+    await configurarCombate(page);
+    await page.route(/\/revisiones(\?.*)?$/, async route => {
       await new Promise(r => setTimeout(r, 1500));
       await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
     });
-    await page.goto('/history');
+    await page.getByTestId('nav-history').click();
     await expect(page.getByTestId('historial-cargando')).toContainText('Cargando');
   });
 

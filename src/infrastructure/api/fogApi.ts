@@ -3,7 +3,7 @@ import type { VeredictoRegistrado } from '../../domain/entities/Action';
 import type { FencerColor } from '../../domain/entities/Fencer';
 import type {
   BrazoArmado, CombateActivo, ConfigCombateInput, Decision, EventoCatalogo, HealthResponse,
-  ModeloActivo, RevisionResumen, TiradorConfig, UsuarioCatalogo,
+  ModeloActivo, RevisionDetalle, RevisionResumen, ResumenSesion, ResumenValidacion, TiradorConfig, UsuarioCatalogo,
 } from '../../domain/entities/Combate';
 
 export interface ClipUploadResponse {
@@ -121,7 +121,7 @@ export async function getCombate(matchId: string): Promise<CombateActivo | null>
   if (!res.ok) throw await errorDeRespuesta(res);
   const c = (await res.json()) as CombateDto;
   return {
-    matchId: c.match_id, pista: c.pista, arbitroId: c.arbitro_id, arbitro: c.arbitro,
+    matchId: c.match_id, eventoId: null, pista: c.pista, arbitroId: c.arbitro_id, arbitro: c.arbitro,
     aliasA: c.alias_A, aliasB: c.alias_B, brazoA: c.weapon_side_A, brazoB: c.weapon_side_B,
   };
 }
@@ -160,8 +160,14 @@ interface RevisionDto {
   clase_final: string | null;
 }
 
-export async function getRevisiones(): Promise<RevisionResumen[]> {
-  const rows = await getJson<RevisionDto[]>('/revisiones');
+/**
+ * GET /revisiones?evento_id= (CU-12): revisiones del evento, de la más reciente a la más antigua.
+ *
+ * Raises:
+ *   Error: si el Fog responde con error o no hay conexión.
+ */
+export async function getRevisiones(eventoId: string): Promise<RevisionResumen[]> {
+  const rows = await getJson<RevisionDto[]>(`/revisiones?evento_id=${encodeURIComponent(eventoId)}`);
   return rows.map(r => ({
     id: r.id,
     abiertaEn: r.abierta_en,
@@ -171,6 +177,89 @@ export async function getRevisiones(): Promise<RevisionResumen[]> {
     decision: r.decision,
     claseFinal: r.clase_final,
   }));
+}
+
+interface RevisionDetalleDto {
+  id: string;
+  abierta_en: string;
+  cerrada_en: string | null;
+  sugerencia: {
+    disponible: boolean;
+    motivo_no_disp: string | null;
+    clase: string | null;
+    tirador: 'A' | 'B' | null;
+    confianza: number | null;
+  } | null;
+  probabilidades: Record<string, number> | null;
+  decision: string | null;
+  clase_final: string | null;
+  registrado_en: string | null;
+  auditoria_seq: number | null;
+  auditoria_hash: string | null;
+}
+
+/**
+ * GET /revisiones/{id}: detalle de una revisión.
+ *
+ * Raises:
+ *   Error: si la revisión no existe (404) o el Fog no responde.
+ */
+export async function getRevision(id: string): Promise<RevisionDetalle> {
+  const d = await getJson<RevisionDetalleDto>(`/revisiones/${encodeURIComponent(id)}`);
+  return {
+    id: d.id,
+    abiertaEn: d.abierta_en,
+    cerradaEn: d.cerrada_en,
+    sugerencia: d.sugerencia && {
+      disponible: d.sugerencia.disponible,
+      motivoNoDisp: d.sugerencia.motivo_no_disp,
+      clase: d.sugerencia.clase,
+      tirador: d.sugerencia.tirador,
+      confianza: d.sugerencia.confianza,
+    },
+    probabilidades: d.probabilidades,
+    decision: d.decision,
+    claseFinal: d.clase_final,
+    registradoEn: d.registrado_en,
+    auditoriaSeq: d.auditoria_seq,
+    auditoriaHash: d.auditoria_hash,
+  };
+}
+
+/**
+ * GET /validaciones/{evento_id}/resumen (L02) en texto, tal como lo devuelve el Fog, para exportarlo.
+ *
+ * Raises:
+ *   Error: si el evento no existe (404) o el Fog no responde.
+ */
+export async function getResumenValidacionTexto(eventoId: string): Promise<string> {
+  const res = await fetch(`${FOG_BASE_URL}/validaciones/${encodeURIComponent(eventoId)}/resumen`);
+  if (!res.ok) throw await errorDeRespuesta(res);
+  return res.text();
+}
+
+interface ResumenValidacionDto {
+  n_revisiones: number;
+  latencia: { p95_ms: number | null; p95_excede_umbral: boolean };
+  kappa: { calculable: boolean; kappa: number | null; banda: string | null };
+}
+
+const aResumenValidacion = (v: ResumenValidacionDto): ResumenValidacion => ({
+  nRevisiones: v.n_revisiones,
+  latencia: { p95Ms: v.latencia.p95_ms, p95ExcedeUmbral: v.latencia.p95_excede_umbral },
+  kappa: { calculable: v.kappa.calculable, kappa: v.kappa.kappa, banda: v.kappa.banda },
+});
+
+/**
+ * GET /validaciones/{evento_id}/resumen: métricas de la sesión separadas por V1 y V2 (sin total).
+ *
+ * Raises:
+ *   Error: si el evento no existe (404) o el Fog no responde.
+ */
+export async function getResumenSesion(eventoId: string): Promise<ResumenSesion> {
+  const r = await getJson<{ por_validacion: { V1: ResumenValidacionDto; V2: ResumenValidacionDto } }>(
+    `/validaciones/${encodeURIComponent(eventoId)}/resumen`);
+  return { V1: aResumenValidacion(r.por_validacion.V1), V2: aResumenValidacion(r.por_validacion.V2) };
 }
 
 /** POST /matches/config (CU-01). Devuelve el `match_id` del combate creado. */

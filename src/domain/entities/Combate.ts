@@ -3,6 +3,8 @@ export type BrazoArmado = 'right' | 'left';
 /** Combate creado con POST /matches/config; es el único origen de pista, árbitro y alias. */
 export interface CombateActivo {
   matchId: string;
+  /** Evento (sesión de validación) elegido al configurar. GET /matches/{id} no lo devuelve: null si no se recuerda. */
+  eventoId: string | null;
   pista: string;
   arbitroId: string;
   arbitro: string;
@@ -62,6 +64,38 @@ export interface RevisionResumen {
   confianza: number | null;
   decision: string | null;
   claseFinal: string | null;
+}
+
+/** Detalle de GET /revisiones/{id} (CONTRATO_API 1.3). */
+export interface RevisionDetalle {
+  id: string;
+  abiertaEn: string;
+  cerradaEn: string | null;
+  sugerencia: {
+    disponible: boolean;
+    motivoNoDisp: string | null;
+    clase: string | null;
+    tirador: 'A' | 'B' | null;
+    confianza: number | null;
+  } | null;
+  probabilidades: Record<string, number> | null;
+  decision: string | null;
+  claseFinal: string | null;
+  registradoEn: string | null;
+  auditoriaSeq: number | null;
+  auditoriaHash: string | null;
+}
+
+/** Métricas de una validación (V1 o V2) en GET /validaciones/{evento_id}/resumen; solo los campos que usa la interfaz. */
+export interface ResumenValidacion {
+  nRevisiones: number;
+  latencia: { p95Ms: number | null; p95ExcedeUmbral: boolean };
+  kappa: { calculable: boolean; kappa: number | null; banda: string | null };
+}
+
+export interface ResumenSesion {
+  V1: ResumenValidacion;
+  V2: ResumenValidacion;
 }
 
 /** Valores de `decision` del veredicto (CONTRATO_API 7.1). */
