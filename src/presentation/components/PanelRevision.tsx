@@ -43,12 +43,13 @@ function Paso({ numero, titulo, children, testID }: {
 interface PasoClipProps {
   fileName: string | null;
   onElegirClip: () => void;
-  hasLuzA: boolean;
-  hasLuzB: boolean;
-  onLuzA: () => void;
-  onLuzB: () => void;
-  tTocadoMs: number | null;
-  onMarcarTocado: () => void;
+  /** Instante de cada luz en ms desde el inicio del clip; null = sin marcar. */
+  tLuzAMs: number | null;
+  tLuzBMs: number | null;
+  onMarcarLuzA: () => void;
+  onMarcarLuzB: () => void;
+  onQuitarLuzA: () => void;
+  onQuitarLuzB: () => void;
   onAnalizar: () => void;
   /** Qué falta para poder analizar, o null si ya se puede. */
   faltante: string | null;
@@ -60,7 +61,6 @@ export function PasoClip(p: PasoClipProps) {
   const { sessionStatus, inicioAnalisis, errorMessage } = useSession();
   const transcurrido = useTranscurrido(inicioAnalisis);
   const analizando = sessionStatus === 'analyzing';
-  const luzHint = p.hasLuzA && p.hasLuzB ? 'Ambas luces' : p.hasLuzA ? 'Luz A' : p.hasLuzB ? 'Luz B' : 'Sin luz';
 
   return (
     <Paso numero={1} titulo="Clip" testID="paso-clip">
@@ -71,26 +71,29 @@ export function PasoClip(p: PasoClipProps) {
         </Text>
       </View>
 
-      <Text style={s.etiqueta}>Luz Favero simulada (al menos una)</Text>
-      <View style={s.fila}>
-        <Button
-          testID="luz-a-btn" label={`${p.hasLuzA ? '● ' : '○ '}${FENCER_LABEL.ROJ}`} onPress={p.onLuzA} disabled={analizando}
-          bg={p.hasLuzA ? C.red + '22' : undefined} border={p.hasLuzA ? C.red : undefined} color={p.hasLuzA ? C.red : C.textMuted}
-        />
-        <Button
-          testID="luz-b-btn" label={`${p.hasLuzB ? '● ' : '○ '}${FENCER_LABEL.VER}`} onPress={p.onLuzB} disabled={analizando}
-          bg={p.hasLuzB ? C.green + '22' : undefined} border={p.hasLuzB ? C.green : undefined} color={p.hasLuzB ? C.green : C.textMuted}
-        />
-        <Text testID="luz-hint" style={s.valor}>{luzHint}</Text>
-      </View>
-
-      <Text style={s.etiqueta}>Instante del tocado (t_tocado_ms)</Text>
-      <View style={s.fila}>
-        <Button testID="marcar-tocado-btn" label="Marcar tocado aquí" onPress={p.onMarcarTocado} disabled={analizando || !p.fileName} />
-        <Text testID="tocado-valor" style={s.valor}>
-          {p.tTocadoMs === null ? 'Sin marcar' : `${p.tTocadoMs} ms`}
-        </Text>
-      </View>
+      <Text style={s.etiqueta}>Luz Favero simulada · instante de cada luz (al menos una)</Text>
+      {([
+        { lado: 'a', nombre: 'A', rotulo: FENCER_LABEL.ROJ, tecla: 'R', color: C.red,
+          t: p.tLuzAMs, marcar: p.onMarcarLuzA, quitar: p.onQuitarLuzA },
+        { lado: 'b', nombre: 'B', rotulo: FENCER_LABEL.VER, tecla: 'V', color: C.green,
+          t: p.tLuzBMs, marcar: p.onMarcarLuzB, quitar: p.onQuitarLuzB },
+      ] as const).map(l => (
+        <View key={l.lado} style={s.fila}>
+          <Button
+            testID={`marcar-luz-${l.lado}-btn`} label={`Marcar luz ${l.rotulo} aquí`} shortcut={l.tecla}
+            onPress={l.marcar} disabled={analizando || !p.fileName}
+            bg={l.t !== null ? l.color + '22' : undefined} border={l.t !== null ? l.color : undefined}
+            color={l.t !== null ? l.color : undefined}
+          />
+          <Text testID={`luz-${l.lado}-valor`} style={s.valor}>
+            {l.t === null ? `Luz ${l.nombre}: sin marcar` : `Luz ${l.nombre}: ${l.t} ms`}
+          </Text>
+          <Button
+            testID={`quitar-luz-${l.lado}-btn`} label={`Quitar luz ${l.nombre}`}
+            onPress={l.quitar} disabled={analizando || l.t === null}
+          />
+        </View>
+      ))}
 
       <Button
         testID="analizar-btn" variant="primary" shortcut="Intro"

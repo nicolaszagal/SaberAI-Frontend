@@ -94,10 +94,9 @@ export async function mockClip(page: Page, body: unknown = CLIP_OK, status = 200
   await page.route('**/matches/*/clip', route => route.fulfill(json(body, status)));
 }
 
-/** Elige el clip, marca la luz de A y el tocado, y pulsa ANALIZAR. */
+/** Elige el clip, marca la luz de A en el instante actual del reproductor y pulsa ANALIZAR. */
 export async function analizarClip(page: Page, fixture = 'e2e/fixtures/dummy.mp4') {
   await page.getByTestId('file-input').setInputFiles(fixture);
-  await page.getByTestId('luz-a-btn').click();
-  await page.getByTestId('marcar-tocado-btn').click();
+  await page.getByTestId('marcar-luz-a-btn').click();
   await page.getByTestId('analizar-btn').click();
 }

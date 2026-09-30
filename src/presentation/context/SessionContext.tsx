@@ -10,9 +10,10 @@ export type VeredictoStatus = 'idle' | 'enviando' | 'registrado' | 'error';
 
 export interface ClipInput {
   file: File;
-  hasLuzA: boolean;
-  hasLuzB: boolean;
-  tTocadoMs: number;
+  /** Instante de la luz A en ms desde el inicio del clip; null = apagada. */
+  tLuzAMs: number | null;
+  /** Instante de la luz B en ms desde el inicio del clip; null = apagada. */
+  tLuzBMs: number | null;
 }
 
 interface SessionContextValue {

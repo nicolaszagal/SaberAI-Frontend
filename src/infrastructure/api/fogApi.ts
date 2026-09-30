@@ -36,9 +36,9 @@ async function errorDeRespuesta(res: Response): Promise<Error> {
  * Args:
  *   matchId: id del combate activo.
  *   file: clip MP4/MOV.
- *   hasLuzA: luz Favero simulada de A.
- *   hasLuzB: luz Favero simulada de B.
- *   tTocadoMs: instante del tocado en ms desde el inicio del clip.
+ *   tLuzAMs: instante de la luz Favero simulada de A, en ms desde el inicio del clip; null = apagada.
+ *   tLuzBMs: ídem para B. Al menos una debe existir; el servidor deduce la luz encendida de su
+ *     instante y calcula `t_tocado_ms` como el menor.
  *   signal: permite abandonar la espera (límite de 60 s, RNF-04).
  *
  * Raises:
@@ -47,17 +47,15 @@ async function errorDeRespuesta(res: Response): Promise<Error> {
 export async function uploadClip(
   matchId: string,
   file: File,
-  hasLuzA: boolean,
-  hasLuzB: boolean,
-  tTocadoMs: number,
+  tLuzAMs: number | null,
+  tLuzBMs: number | null,
   signal?: AbortSignal,
 ): Promise<ClipUploadResponse> {
   const body = new FormData();
   body.append('file', file);
-  // has_luz_A/has_luz_B (DEF-14): reemplaza al alias obsoleto luz_frame_a/b.
-  body.append('has_luz_A', String(hasLuzA));
-  body.append('has_luz_B', String(hasLuzB));
-  body.append('t_tocado_ms', String(tTocadoMs));
+  // t_luz_a_ms/t_luz_b_ms (V02): has_luz_A/B y t_tocado_ms quedan como alias obsoletos del Fog.
+  if (tLuzAMs !== null) body.append('t_luz_a_ms', String(tLuzAMs));
+  if (tLuzBMs !== null) body.append('t_luz_b_ms', String(tLuzBMs));
 
   const res = await fetch(
     `${FOG_BASE_URL}/matches/${encodeURIComponent(matchId)}/clip`,

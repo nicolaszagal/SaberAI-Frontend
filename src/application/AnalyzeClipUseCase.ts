@@ -8,9 +8,8 @@ export const LIMITE_ANALISIS_MS = 60_000;
 
 export interface AnalyzeClipInput {
   file: File;
-  hasLuzA: boolean;
-  hasLuzB: boolean;
-  tTocadoMs: number;
+  tLuzAMs: number | null;
+  tLuzBMs: number | null;
   combate: CombateActivo;
 }
 
@@ -21,7 +20,7 @@ export interface AnalyzeClipInput {
  * con motivo `timeout` (RF-13, RNF-09): el árbitro sigue el procedimiento VAR habitual.
  *
  * Args:
- *   input: clip, luces, instante del tocado y combate activo.
+ *   input: clip, instante de cada luz (null = apagada) y combate activo.
  *
  * Returns:
  *   La revisión con su sugerencia, o sin ella y con el motivo.
@@ -30,11 +29,11 @@ export interface AnalyzeClipInput {
  *   Error: si el Fog rechaza el clip o no hay conexión.
  */
 export async function analyzeClip(input: AnalyzeClipInput): Promise<RevisionAnalizada> {
-  const { file, hasLuzA, hasLuzB, tTocadoMs, combate } = input;
+  const { file, tLuzAMs, tLuzBMs, combate } = input;
   const control = new AbortController();
   const temporizador = setTimeout(() => control.abort(), LIMITE_ANALISIS_MS);
   try {
-    const r = await uploadClip(combate.matchId, file, hasLuzA, hasLuzB, tTocadoMs, control.signal);
+    const r = await uploadClip(combate.matchId, file, tLuzAMs, tLuzBMs, control.signal);
     if (!r.disponible || !r.fencer || !r.action || r.confidence == null) {
       return { revisionId: r.revision_id, sugerencia: null, motivo: r.motivo ?? (r.timed_out ? 'timeout' : null) };
     }

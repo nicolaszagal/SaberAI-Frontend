@@ -54,12 +54,10 @@ async function prepararClip(page: Page, ruta: string, tMs: number, luces: { a: b
     const v = document.querySelector('[data-testid="video-player"]') as HTMLVideoElement;
     return Math.abs(v.currentTime * 1000 - ms) < 50 && !v.seeking;
   }, tMs);
-  // Las luces se conservan al cambiar de clip: se fija el estado deseado, no se alterna a ciegas.
-  for (const [id, deseada] of [['luz-a-btn', luces.a], ['luz-b-btn', luces.b]] as const) {
-    const activa = (await page.getByTestId(id).innerText()).includes('●');
-    if (activa !== deseada) await page.getByTestId(id).click();
+  // Las luces se reinician al elegir otro clip: se marca en `tMs` solo la luz deseada.
+  for (const [lado, deseada] of [['a', luces.a], ['b', luces.b]] as const) {
+    if (deseada) await page.getByTestId(`marcar-luz-${lado}-btn`).click();
   }
-  await page.getByTestId('marcar-tocado-btn').click();
 }
 
 test('sesión completa del manual de usuario', async ({ page }) => {

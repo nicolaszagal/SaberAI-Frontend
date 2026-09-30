@@ -57,40 +57,101 @@ test.describe('estructura', () => {
 });
 
 test.describe('Paso 1 · Clip', () => {
-  test('toggles de luz cambian el estado', async ({ page }) => {
-    await expect(page.getByTestId('luz-hint')).toHaveText('Sin luz');
-    await page.getByTestId('luz-a-btn').click();
-    await expect(page.getByTestId('luz-hint')).toHaveText('Luz A');
-    await page.getByTestId('luz-b-btn').click();
-    await expect(page.getByTestId('luz-hint')).toHaveText('Ambas luces');
+  test('marcar y quitar cada luz muestra su instante', async ({ page }) => {
+    await page.getByTestId('file-input').setInputFiles(FIXTURE);
+    await expect(page.getByTestId('luz-a-valor')).toHaveText('Luz A: sin marcar');
+    await expect(page.getByTestId('luz-b-valor')).toHaveText('Luz B: sin marcar');
+    await expect(page.getByTestId('quitar-luz-a-btn')).toHaveAttribute('aria-disabled', 'true');
+
+    await page.getByTestId('marcar-luz-a-btn').click();
+    await expect(page.getByTestId('luz-a-valor')).toHaveText('Luz A: 0 ms');
+    await expect(page.getByTestId('luz-b-valor')).toHaveText('Luz B: sin marcar');
+    await page.getByTestId('marcar-luz-b-btn').click();
+    await expect(page.getByTestId('luz-b-valor')).toHaveText('Luz B: 0 ms');
+
+    await page.getByTestId('quitar-luz-a-btn').click();
+    await expect(page.getByTestId('luz-a-valor')).toHaveText('Luz A: sin marcar');
+    await expect(page.getByTestId('luz-b-valor')).toHaveText('Luz B: 0 ms');
   });
 
-  test('ANALIZAR exige clip, una luz y el instante del tocado', async ({ page }) => {
+  test('ANALIZAR se habilita con al menos una luz marcada y se deshabilita al quitarla', async ({ page }) => {
     const analizar = page.getByTestId('analizar-btn');
     await expect(page.getByTestId('analizar-falta')).toContainText('elegir un clip');
     await page.getByTestId('file-input').setInputFiles(FIXTURE);
     await expect(page.getByTestId('filename-display')).toContainText('dummy.mp4');
     await expect(page.getByTestId('analizar-falta')).toContainText('luz A o la luz B');
-    await page.getByTestId('luz-b-btn').click();
-    await expect(page.getByTestId('analizar-falta')).toContainText('tocado');
     await expect(analizar).toHaveAttribute('aria-disabled', 'true');
-    await page.getByTestId('marcar-tocado-btn').click();
-    await expect(page.getByTestId('tocado-valor')).toHaveText('0 ms');
+    await page.getByTestId('marcar-luz-b-btn').click();
     await expect(page.getByTestId('analizar-falta')).toHaveCount(0);
     await expect(analizar).not.toHaveAttribute('aria-disabled', 'true');
+    await page.getByTestId('quitar-luz-b-btn').click();
+    await expect(analizar).toHaveAttribute('aria-disabled', 'true');
   });
 
-  test('envía el clip con las luces y el instante del tocado marcados', async ({ page }) => {
+  test('los atajos R y V marcan la luz A y la luz B', async ({ page }) => {
+    await page.getByTestId('file-input').setInputFiles(FIXTURE);
+    await page.keyboard.press('r');
+    await expect(page.getByTestId('luz-a-valor')).toHaveText('Luz A: 0 ms');
+    await page.keyboard.press('v');
+    await expect(page.getByTestId('luz-b-valor')).toHaveText('Luz B: 0 ms');
+  });
+
+  test('las luces se reinician al elegir otro clip', async ({ page }) => {
+    await page.getByTestId('file-input').setInputFiles(FIXTURE);
+    await page.getByTestId('marcar-luz-a-btn').click();
+    await page.getByTestId('marcar-luz-b-btn').click();
+    await page.getByTestId('file-input').setInputFiles(VIDEO);
+    await expect(page.getByTestId('luz-a-valor')).toHaveText('Luz A: sin marcar');
+    await expect(page.getByTestId('luz-b-valor')).toHaveText('Luz B: sin marcar');
+  });
+
+  test('analizar con una luz envía solo el instante de esa luz', async ({ page }) => {
     await mockClip(page);
     const peticion = page.waitForRequest('**/matches/*/clip');
     await page.getByTestId('file-input').setInputFiles(VIDEO);
-    await page.getByTestId('luz-a-btn').click();
-    await page.getByTestId('marcar-tocado-btn').click();
+    await page.getByTestId('marcar-luz-a-btn').click();
     await page.getByTestId('analizar-btn').click();
     const cuerpo = (await peticion).postData() ?? '';
-    expect(cuerpo).toContain('name="has_luz_A"\r\n\r\ntrue');
-    expect(cuerpo).toContain('name="has_luz_B"\r\n\r\nfalse');
-    expect(cuerpo).toMatch(/name="t_tocado_ms"\r\n\r\n\d+/);
+    expect(cuerpo).toMatch(/name="t_luz_a_ms"\r\n\r\n\d+/);
+    expect(cuerpo).not.toContain('name="t_luz_b_ms"');
+    expect(cuerpo).not.toContain('has_luz_A');
+    expect(cuerpo).not.toContain('t_tocado_ms');
+  });
+
+  test('cada luz guarda el instante del reproductor en que se marcó', async ({ page }) => {
+    await page.getByTestId('file-input').setInputFiles(VIDEO);
+    const irA = async (ms: number) => {
+      await page.evaluate(t => {
+        (document.querySelector('[data-testid="video-player"]') as HTMLVideoElement).currentTime = t / 1000;
+      }, ms);
+      await page.waitForFunction(t => {
+        const v = document.querySelector('[data-testid="video-player"]') as HTMLVideoElement;
+        return Math.abs(v.currentTime * 1000 - t) < 50 && !v.seeking;
+      }, ms);
+    };
+    await page.getByTestId('video-player').waitFor();
+    await irA(400);
+    await page.getByTestId('marcar-luz-b-btn').click();
+    await irA(200);
+    await page.getByTestId('marcar-luz-a-btn').click();
+    const a = Number((await page.getByTestId('luz-a-valor').innerText()).match(/(\d+) ms/)![1]);
+    const b = Number((await page.getByTestId('luz-b-valor').innerText()).match(/(\d+) ms/)![1]);
+    expect(Math.abs(a - 200)).toBeLessThan(50);
+    expect(Math.abs(b - 400)).toBeLessThan(50);
+    expect(b).toBeGreaterThan(a);
+  });
+
+  test('analizar con dos luces envía el instante de cada una', async ({ page }) => {
+    await mockClip(page);
+    const peticion = page.waitForRequest('**/matches/*/clip');
+    await page.getByTestId('file-input').setInputFiles(VIDEO);
+    await page.getByTestId('marcar-luz-a-btn').click();
+    await page.getByTestId('marcar-luz-b-btn').click();
+    await page.getByTestId('analizar-btn').click();
+    const cuerpo = (await peticion).postData() ?? '';
+    expect(cuerpo).toMatch(/name="t_luz_a_ms"\r\n\r\n\d+/);
+    expect(cuerpo).toMatch(/name="t_luz_b_ms"\r\n\r\n\d+/);
+    await expect(page.getByTestId('status-done')).toBeVisible();
   });
 
   test('muestra Analizando con el tiempo transcurrido y el límite de 60 s', async ({ page }) => {
