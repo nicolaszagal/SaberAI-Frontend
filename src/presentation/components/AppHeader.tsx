@@ -1,14 +1,14 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useC, useTheme } from '../context/ThemeContext';
 import { useCombat } from '../context/CombatContext';
 import { useHealth, type Conexion } from '../hooks/useHealth';
+import { getModeloActivo } from '../../infrastructure/api/fogApi';
 import { CONTROL_HEIGHT, FONT, RADIUS, space } from '../theme/tokens';
 import type { Screen } from '../../../App';
 
 /** Navegación de la Validación 1. */
 const NAV: { screen: Screen; label: string }[] = [
-  { screen: 'dashboard', label: 'Inicio' },
   { screen: 'live',      label: 'Revisión VAR' },
   { screen: 'history',   label: 'Historial' },
   { screen: 'config',    label: 'Combate' },
@@ -31,6 +31,14 @@ export function AppHeader({ screen, onNavigate }: Props) {
   const { theme, toggleTheme } = useTheme();
   const { combate, finalizarCombate } = useCombat();
   const conexion = useHealth();
+  const [modelo, setModelo] = useState<string | null>(null);
+
+  // Modelo activo real; si la consulta falla, no se muestra.
+  useEffect(() => {
+    let activo = true;
+    getModeloActivo().then(m => { if (activo) setModelo(m.nombre); }).catch(() => {});
+    return () => { activo = false; };
+  }, []);
   const s = useMemo(() => styles(C), [C]);
   const conexionColor =
     conexion === 'ok' ? C.green : conexion === 'verificando' ? C.textMuted : conexion === 'degradado' ? C.orange : C.red;
@@ -71,6 +79,7 @@ export function AppHeader({ screen, onNavigate }: Props) {
             </TouchableOpacity>
           </>
         )}
+        {modelo && <Text testID="modelo-activo" style={s.modelo}>Modelo activo: {modelo}</Text>}
         <View testID="health-indicator" style={s.healthChip}>
           <View style={[s.healthDot, { backgroundColor: conexionColor }]} />
           <Text style={[s.healthText, { color: conexionColor }]}>{CONEXION_LABEL[conexion]}</Text>
@@ -111,6 +120,7 @@ const styles = (C: ReturnType<typeof useC>) => StyleSheet.create({
   navTextActive: { color: C.text, fontWeight: '700' },
   right: { flexDirection: 'row', alignItems: 'center', gap: space(3), flexWrap: 'wrap' },
   meta:  { color: C.textMuted, fontSize: FONT.sm },
+  modelo: { color: C.textMuted, fontSize: FONT.xs },
   healthChip: {
     flexDirection: 'row', alignItems: 'center', gap: space(1.5),
     paddingHorizontal: space(2), paddingVertical: space(1), borderRadius: RADIUS.sm, borderWidth: 1, borderColor: C.border,
