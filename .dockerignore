@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.expo/
+e2e/
+test-results/
+.git/
+.DS_Store
