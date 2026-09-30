@@ -1,15 +1,26 @@
 import { test, expect, type Page } from '@playwright/test';
 
 /**
- * Capturas del manual de usuario (DOC01) contra el sistema real: Fog, Cloud, Redis y
- * PostgreSQL levantados, sin API simulada. Recorre una sesión completa con tres revisiones
- * (mantener, cambiar y anular) y guarda una imagen por pantalla. Solo corre con
+ * Capturas del manual de usuario contra el sistema real: Fog, Cloud, Redis y PostgreSQL
+ * levantados, sin API simulada. Recorre una sesión completa con tres revisiones (mantener,
+ * cambiar y anular, cada una con su pregunta y su resumen) y guarda las 15 imágenes del
+ * manual. Todas se regeneran juntas para que muestren el mismo evento. Solo corre con
  * `CAPTURAS=1 SISTEMA_REAL=1 npx playwright test e2e/capturas-manual.spec.ts`.
- *
- * Variables: EVENTO_NOMBRE y ARBITRO_NOMBRE (existen en la base, ver
- * scripts/crear_sesion_validacion.py), CLIP_1, CLIP_2 y CLIP_SIN_TIRADORES (rutas de
- * video), CLIP_1_T_MS y CLIP_2_T_MS (instante del tocado) y CAPTURAS_DIR (salida).
  * Usa Google Chrome (`channel: 'chrome'`) porque el Chromium de Playwright no reproduce H.264.
+ *
+ * Variables obligatorias (sin ellas las rutas y nombres quedan vacíos y la prueba falla):
+ *   EVENTO_NOMBRE       evento que ya existe en la base (scripts/crear_sesion_validacion.py).
+ *   ARBITRO_NOMBRE      árbitro que ya existe en la base; se reutiliza, no se crea otro.
+ *   CLIP_1              ruta absoluta del clip de la revisión 1 (el árbitro elige la sugerida).
+ *   CLIP_2              ruta absoluta del clip de la revisión 2 (el árbitro elige otra clase).
+ *   CLIP_SIN_TIRADORES  ruta absoluta de un video sin tiradores ("Clasificación no disponible").
+ *   CLIP_1_T_MS         instante del tocado del CLIP_1, en ms: primer fotograma con luz de
+ *                       dataset/labels/luz_annotations.csv dividido por los fps (criterio de
+ *                       backend/docs/evidencia/prueba_humo_Q02.md).
+ *   CLIP_2_T_MS         ídem para CLIP_2.
+ *   CAPTURAS_DIR        carpeta de salida (ruta absoluta), p. ej. backend/docs/manuales/img.
+ * Además, E2E_PORT (puerto del frontend de la prueba) y EXPO_PUBLIC_FOG_URL (Fog de la
+ * prueba). Procedimiento completo: GUIA_INSTALACION.md, "Regenerar capturas".
  */
 test.skip(!process.env.CAPTURAS || !process.env.SISTEMA_REAL, 'Definir CAPTURAS=1 y SISTEMA_REAL=1');
 
@@ -93,7 +104,10 @@ test('sesión completa del manual de usuario', async ({ page }) => {
   await foto(page, '06-revision-analizando');
   await page.getByTestId('status-done').waitFor({ timeout: 90_000 });
   await foto(page, '07-revision-sugerencia');
-  await page.getByTestId('veredicto-mantener').click();
+  await page.locator('[data-testid^="clase-"]').filter({ hasText: 'Sugerencia del sistema' }).click();
+  await page.getByTestId('cambia-no').click();
+  await page.getByTestId('resumen-decision').waitFor();
+  await page.getByTestId('veredicto-enviar').click();
   await page.getByTestId('veredicto-confirmado').waitFor();
   await foto(page, '08-revision-veredicto-registrado');
 
@@ -101,11 +115,13 @@ test('sesión completa del manual de usuario', async ({ page }) => {
   await prepararClip(page, CLIP_2, CLIP_2_T_MS, { a: true, b: true });
   await page.getByTestId('analizar-btn').click();
   await page.getByTestId('status-done').waitFor({ timeout: 90_000 });
-  await page.getByTestId('veredicto-cambiar').click();
   await page.getByTestId('selector-clase').waitFor();
-  await page.getByTestId('selector-cancelar').scrollIntoViewIfNeeded();
-  await foto(page, '09-revision-selector-clase');
   await page.getByTestId('clase-AttackA').click();
+  await page.getByTestId('cambia-si').click();
+  await page.getByTestId('resumen-decision').waitFor();
+  await page.getByTestId('veredicto-enviar').scrollIntoViewIfNeeded();
+  await foto(page, '09-revision-selector-clase');
+  await page.getByTestId('veredicto-enviar').click();
   await page.getByTestId('veredicto-confirmado').waitFor();
 
   // Revisión 3: sin tiradores detectables, "Clasificación no disponible"; el árbitro anula.
@@ -114,6 +130,7 @@ test('sesión completa del manual de usuario', async ({ page }) => {
   await page.getByTestId('no-disponible').waitFor({ timeout: 90_000 });
   await foto(page, '10-revision-no-disponible');
   await page.getByTestId('veredicto-anular').click();
+  await page.getByTestId('veredicto-enviar').click();
   await page.getByTestId('veredicto-confirmado').waitFor();
 
   // Historial y detalle.
