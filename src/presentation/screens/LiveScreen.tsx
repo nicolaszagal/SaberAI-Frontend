@@ -25,12 +25,11 @@ export function LiveScreen({ onNavigate }: Props) {
   const { combate, validando, errorValidacion, reintentarValidacion } = useCombat();
   const { submitClip, sessionStatus, resetSession } = useSession();
 
-  const [hasLuzA, setHasLuzA]     = useState(false);
-  const [hasLuzB, setHasLuzB]     = useState(false);
   const [videoSrc, setVideoSrc]   = useState<string | null>(null);
   const [fileName, setFileName]   = useState<string | null>(null);
   const [clipFile, setClipFile]   = useState<File | null>(null);
-  const [tTocadoMs, setTTocadoMs] = useState<number | null>(null);
+  const [tLuzAMs, setTLuzAMs]     = useState<number | null>(null);
+  const [tLuzBMs, setTLuzBMs]     = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef     = useRef<HTMLVideoElement>(null);
@@ -44,7 +43,8 @@ export function LiveScreen({ onNavigate }: Props) {
     setVideoSrc(URL.createObjectURL(file));
     setFileName(file.name);
     setClipFile(file);
-    setTTocadoMs(null);
+    setTLuzAMs(null);
+    setTLuzBMs(null);
     resetSession();
   }
 
@@ -53,29 +53,33 @@ export function LiveScreen({ onNavigate }: Props) {
     fileInputRef.current?.click();
   }
 
-  /** Toma el instante actual del reproductor como tocado (RF-02), en ms desde el inicio. */
-  function marcarTocado() {
+  /** Toma el instante actual del reproductor como el de una luz (RF-02), en ms desde el inicio. */
+  function marcarLuz(poner: (ms: number) => void) {
     const v = videoRef.current;
-    if (!v) return;
+    if (!v || !clipFile || isAnalyzing) return;
     const maximo = Number.isFinite(v.duration) ? Math.floor(v.duration * 1000) : Infinity;
-    setTTocadoMs(Math.min(Math.round(v.currentTime * 1000), maximo));
+    poner(Math.min(Math.round(v.currentTime * 1000), maximo));
   }
+  const marcarLuzA = () => marcarLuz(setTLuzAMs);
+  const marcarLuzB = () => marcarLuz(setTLuzBMs);
 
   const isAnalyzing = sessionStatus === 'analyzing';
   const faltante =
     !combate ? 'un combate activo'
     : !clipFile ? 'elegir un clip'
-    : !hasLuzA && !hasLuzB ? 'marcar la luz A o la luz B'
-    : tTocadoMs === null ? 'marcar el instante del tocado'
+    : tLuzAMs === null && tLuzBMs === null ? 'marcar la luz A o la luz B'
     : null;
 
   async function handleAnalyze() {
-    if (faltante !== null || isAnalyzing || !clipFile || tTocadoMs === null) return;
-    await submitClip({ file: clipFile, hasLuzA, hasLuzB, tTocadoMs });
+    if (faltante !== null || isAnalyzing || !clipFile) return;
+    await submitClip({ file: clipFile, tLuzAMs, tLuzBMs });
   }
 
   useShortcut({ tecla: 's', activo: !isAnalyzing }, openFilePicker);
   useShortcut({ tecla: 'Enter', activo: faltante === null && !isAnalyzing }, handleAnalyze);
+  // R (ROJ) y V (VER): no chocan con S, Enter, A (anular), Esc, "," ni ".".
+  useShortcut({ tecla: 'r', activo: !!clipFile && !isAnalyzing }, marcarLuzA);
+  useShortcut({ tecla: 'v', activo: !!clipFile && !isAnalyzing }, marcarLuzB);
 
   return (
     <View style={s.root}>
@@ -126,9 +130,9 @@ export function LiveScreen({ onNavigate }: Props) {
           <PasoClip
             fileName={fileName}
             onElegirClip={openFilePicker}
-            hasLuzA={hasLuzA} hasLuzB={hasLuzB}
-            onLuzA={() => setHasLuzA(v => !v)} onLuzB={() => setHasLuzB(v => !v)}
-            tTocadoMs={tTocadoMs} onMarcarTocado={marcarTocado}
+            tLuzAMs={tLuzAMs} tLuzBMs={tLuzBMs}
+            onMarcarLuzA={marcarLuzA} onMarcarLuzB={marcarLuzB}
+            onQuitarLuzA={() => setTLuzAMs(null)} onQuitarLuzB={() => setTLuzBMs(null)}
             onAnalizar={handleAnalyze} faltante={faltante}
           />
           <PasoSugerencia />

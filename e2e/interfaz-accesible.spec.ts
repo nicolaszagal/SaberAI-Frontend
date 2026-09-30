@@ -56,8 +56,8 @@ for (const tema of ['claro', 'oscuro'] as const) {
 test('los tiradores se rotulan con texto: "A · ROJ" y "B · VER"', async ({ page }) => {
   await mockApi(page);
   await page.goto('/live');
-  await expect(page.getByTestId('luz-a-btn')).toContainText('A · ROJ');
-  await expect(page.getByTestId('luz-b-btn')).toContainText('B · VER');
+  await expect(page.getByTestId('marcar-luz-a-btn')).toContainText('A · ROJ');
+  await expect(page.getByTestId('marcar-luz-b-btn')).toContainText('B · VER');
   await page.goto('/config');
   await expect(page.getByText('Tirador A · ROJ')).toBeVisible();
   await expect(page.getByText('Tirador B · VER')).toBeVisible();
@@ -104,8 +104,7 @@ test('el atajo Intro analiza el clip cargado', async ({ page }) => {
   await page.getByTestId('nav-live').click();
   await page.getByTestId('file-input').setInputFiles(FIXTURE);
   await expect(page.getByTestId('filename-display')).toContainText('dummy.mp4');
-  await page.getByTestId('luz-a-btn').click();
-  await page.getByTestId('marcar-tocado-btn').click();
+  await page.getByTestId('marcar-luz-a-btn').click();
   await expect(page.getByTestId('analizar-btn')).not.toHaveAttribute('aria-disabled', 'true');
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.keyboard.press('Enter');
