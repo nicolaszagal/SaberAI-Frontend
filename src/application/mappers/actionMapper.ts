@@ -42,6 +42,22 @@ export function etiquetaDecision(decision: string): string {
   return DECISION_LABELS[decision] ?? decision;
 }
 
+/**
+ * Concordancia sistema-árbitro (L01): `clase_sugerida == clase_final`.
+ *
+ * Args:
+ *   r: fila del historial (sugerencia y decisión del árbitro).
+ *
+ * Returns:
+ *   true/false, o null si la sugerencia no estuvo disponible, no hay veredicto o se anuló.
+ */
+export function concordancia(
+  r: { disponible: boolean; clase: string | null; decision: string | null; claseFinal: string | null },
+): boolean | null {
+  if (!r.disponible || !r.clase || !r.decision || r.decision === 'anular' || !r.claseFinal) return null;
+  return r.clase === r.claseFinal;
+}
+
 /** Motivo de "Clasificación no disponible" en lenguaje claro (valores de `motivo_no_disp`). */
 export function motivoLegible(motivo: string | null | undefined): string {
   switch (motivo) {

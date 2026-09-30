@@ -3,21 +3,27 @@ import { Platform } from 'react-native';
 import type { CombateActivo } from '../../domain/entities/Combate';
 import { getCombate } from '../../infrastructure/api/fogApi';
 
-/** Clave de localStorage: solo se guarda el `match_id`, nunca los datos del combate. */
+/**
+ * Claves de localStorage: solo los ids del combate y del evento, nunca los datos del combate.
+ * El evento se recuerda aparte porque GET /matches/{id} no lo devuelve.
+ */
 const CLAVE_MATCH_ID = 'sabre.match_id';
+const CLAVE_EVENTO_ID = 'sabre.evento_id';
 
-function leerMatchId(): string | null {
+function leerClave(clave: string): string | null {
   if (Platform.OS !== 'web') return null;
-  try { return window.localStorage.getItem(CLAVE_MATCH_ID); } catch { return null; }
+  try { return window.localStorage.getItem(clave); } catch { return null; }
 }
 
-function escribirMatchId(matchId: string | null): void {
+function escribirClave(clave: string, valor: string | null): void {
   if (Platform.OS !== 'web') return;
   try {
-    if (matchId) window.localStorage.setItem(CLAVE_MATCH_ID, matchId);
-    else window.localStorage.removeItem(CLAVE_MATCH_ID);
+    if (valor) window.localStorage.setItem(clave, valor);
+    else window.localStorage.removeItem(clave);
   } catch { /* sin almacenamiento: el combate solo dura hasta recargar */ }
 }
+
+const leerMatchId = () => leerClave(CLAVE_MATCH_ID);
 
 interface CombatContextValue {
   combate: CombateActivo | null;
@@ -51,8 +57,8 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
     getCombate(recordado)
       .then(c => {
         if (!activo) return;
-        if (c) setCombateState(prev => prev ?? c);
-        else if (leerMatchId() === recordado) escribirMatchId(null);
+        if (c) setCombateState(prev => prev ?? { ...c, eventoId: leerClave(CLAVE_EVENTO_ID) });
+        else if (leerMatchId() === recordado) { escribirClave(CLAVE_MATCH_ID, null); escribirClave(CLAVE_EVENTO_ID, null); }
       })
       .catch(e => { if (activo) setErrorValidacion(e instanceof Error ? e.message : 'No se pudo validar el combate'); })
       .finally(() => { if (activo) setValidando(false); });
@@ -60,7 +66,8 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
   }, [recordado, intento]);
 
   const setCombate = useCallback((c: CombateActivo | null) => {
-    escribirMatchId(c ? c.matchId : null);
+    escribirClave(CLAVE_MATCH_ID, c ? c.matchId : null);
+    escribirClave(CLAVE_EVENTO_ID, c ? c.eventoId : null);
     setErrorValidacion(null);
     setCombateState(c);
   }, []);

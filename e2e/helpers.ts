@@ -17,12 +17,37 @@ export const COMBATE_OK = {
   alias_A: 'Rojo', weapon_side_A: 'right', alias_B: 'Verde', weapon_side_B: 'left',
 };
 
+/** Bloque V1/V2 de GET /validaciones/{evento_id}/resumen (solo los campos que usa la interfaz). */
+export function bloqueValidacion(o: {
+  n?: number; kappa?: number | null; banda?: string | null; p95?: number | null; excede?: boolean;
+} = {}) {
+  const kappa = o.kappa ?? null;
+  return {
+    n_revisiones: o.n ?? 0,
+    latencia: { p95_ms: o.p95 ?? null, p95_excede_umbral: o.excede ?? false },
+    kappa: { calculable: kappa !== null, kappa, banda: o.banda ?? null },
+  };
+}
+
+/** Resumen de la sesión sin revisiones con veredicto. */
+export const RESUMEN_VACIO = {
+  evento_id: EVENTO_ID,
+  por_validacion: { V1: bloqueValidacion(), V2: bloqueValidacion() },
+};
+
 const json = (body: unknown, status = 200) => ({
   status, contentType: 'application/json', body: JSON.stringify(body),
 });
 
 /** Intercepta la API del Fog para correr sin el backend Python. */
-export async function mockApi(page: Page, opts: { revisiones?: unknown[]; health?: 'ok' | 'degradado' | 'caido' } = {}) {
+export async function mockApi(page: Page, opts: {
+  revisiones?: unknown[];
+  /** Detalle de GET /revisiones/{id} por id; sin él responde 404. */
+  detalles?: Record<string, unknown>;
+  /** Cuerpo de GET /validaciones/{evento_id}/resumen (por defecto, sin revisiones). */
+  resumen?: unknown;
+  health?: 'ok' | 'degradado' | 'caido';
+} = {}) {
   // GET /matches/{id}: valida el combate activo recordado (404 si no es el creado).
   await page.route(/\/matches\/[0-9a-f-]{36}$/, route =>
     route.request().url().endsWith(MATCH_ID)
@@ -39,7 +64,13 @@ export async function mockApi(page: Page, opts: { revisiones?: unknown[]; health
     route.fulfill(json([{ id: EVENTO_ID, nombre: 'Piloto 1', fecha: '2026-10-05', lugar: null, tipo: 'piloto' }])));
   await page.route('**/usuarios?rol=arbitro', route =>
     route.fulfill(json([{ id: ARBITRO_ID, nombre: 'Árbitro Prueba', rol: 'arbitro', activo: true }])));
-  await page.route('**/revisiones', route => route.fulfill(json(opts.revisiones ?? [])));
+  await page.route(/\/revisiones(\?.*)?$/, route => route.fulfill(json(opts.revisiones ?? [])));
+  await page.route(/\/revisiones\/[^/?]+$/, route => {
+    const id = route.request().url().split('/').pop()!;
+    const d = opts.detalles?.[id];
+    return route.fulfill(d ? json(d) : json({ detail: 'no existe' }, 404));
+  });
+  await page.route('**/validaciones/*/resumen', route => route.fulfill(json(opts.resumen ?? RESUMEN_VACIO)));
   await page.route('**/matches/config', route =>
     route.fulfill(json({ match_id: MATCH_ID, weapon_side_A: 'right', weapon_side_B: 'left' })));
 }

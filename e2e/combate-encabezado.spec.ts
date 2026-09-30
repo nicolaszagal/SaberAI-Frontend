@@ -41,7 +41,8 @@ test('el historial muestra las revisiones de GET /revisiones', async ({ page }) 
       disponible: true, clase: 'RiposteB', confianza: 0.74, decision: null, clase_final: null,
     }],
   });
-  await page.goto('/history');
+  await configurarCombate(page);
+  await page.getByTestId('nav-history').click();
   const fila = page.getByTestId('revision-row');
   await expect(fila).toHaveCount(1);
   await expect(fila).toContainText('RIPOSTE · B');
@@ -51,6 +52,7 @@ test('el historial muestra las revisiones de GET /revisiones', async ({ page }) 
 
 test('historial vacío no inventa filas', async ({ page }) => {
   await mockApi(page);
-  await page.goto('/history');
+  await configurarCombate(page);
+  await page.getByTestId('nav-history').click();
   await expect(page.getByTestId('historial-vacio')).toBeVisible();
 });

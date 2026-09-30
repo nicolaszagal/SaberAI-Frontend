@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useC } from '../context/ThemeContext';
-import { useSession } from '../context/SessionContext';
 import { useCombat } from '../context/CombatContext';
-import { getModeloActivo } from '../../infrastructure/api/fogApi';
+import { getModeloActivo, getResumenSesion } from '../../infrastructure/api/fogApi';
+import type { ResumenSesion, ResumenValidacion } from '../../domain/entities/Combate';
 import { FONT, RADIUS, space } from '../theme/tokens';
 import type { Screen } from '../../../App';
 
@@ -37,6 +37,21 @@ function Tile({ title, main, hint, accent, onPress, hero, testID }: TileProps) {
   );
 }
 
+function formatoLatencia(ms: number): string {
+  return ms >= 1000 ? `${(ms / 1000).toFixed(1)} s` : `${Math.round(ms)} ms`;
+}
+
+/** "8 revisiones · κ 0.33 (aceptable) · latencia p95 48 ms": solo con los datos que existen. */
+function lineaResumen(v: ResumenValidacion): string {
+  const partes = [`${v.nRevisiones} ${v.nRevisiones === 1 ? 'revisión' : 'revisiones'}`];
+  if (v.kappa.calculable && v.kappa.kappa != null) {
+    partes.push(`κ ${v.kappa.kappa.toFixed(2)}${v.kappa.banda ? ` (${v.kappa.banda})` : ''}`);
+  }
+  if (v.latencia.p95Ms != null) partes.push(`latencia p95 ${formatoLatencia(v.latencia.p95Ms)}`);
+  else if (v.latencia.p95ExcedeUmbral) partes.push('latencia p95 > 60 s');
+  return partes.join(' · ');
+}
+
 interface Props {
   onNavigate: (screen: Screen) => void;
 }
@@ -44,15 +59,30 @@ interface Props {
 export function DashboardScreen({ onNavigate }: Props) {
   const C = useC();
   const s = useMemo(() => styles(C), [C]);
-  const { analizadas } = useSession();
   const { combate } = useCombat();
   const [modelo, setModelo] = useState<string | null>(null);
+  const [resumen, setResumen] = useState<ResumenSesion | null>(null);
+  const eventoId = combate?.eventoId ?? null;
 
   useEffect(() => {
     let activo = true;
     getModeloActivo().then(m => { if (activo) setModelo(m.nombre); }).catch(() => {});
     return () => { activo = false; };
   }, []);
+
+  // Resumen real de la sesión: si no hay evento o la consulta falla, no se muestra nada.
+  useEffect(() => {
+    setResumen(null);
+    if (!eventoId) return undefined;
+    let activo = true;
+    getResumenSesion(eventoId).then(r => { if (activo) setResumen(r); }).catch(() => {});
+    return () => { activo = false; };
+  }, [eventoId]);
+
+  const bloques = resumen
+    ? ([['V1', 'Validación 1', resumen.V1], ['V2', 'Validación 2', resumen.V2]] as const)
+      .filter(([, , v]) => v.nRevisiones > 0)
+    : [];
 
   return (
     <View style={s.root}>
@@ -70,7 +100,7 @@ export function DashboardScreen({ onNavigate }: Props) {
           <Tile
             testID="tile-history"
             title="Historial"
-            main={`${analizadas} en esta sesión`}
+            main="Revisiones registradas"
             hint="Consulta las revisiones registradas."
             accent={C.green}
             onPress={() => onNavigate('history')}
@@ -85,6 +115,17 @@ export function DashboardScreen({ onNavigate }: Props) {
           />
         </View>
       </View>
+
+      {bloques.length > 0 && (
+        <View testID="resumen-sesion" style={s.resumen}>
+          <Text style={s.resumenTitulo}>Resumen de la sesión</Text>
+          {bloques.map(([clave, etiqueta, v]) => (
+            <Text key={clave} testID={`resumen-${clave}`} style={s.resumenTexto}>
+              {etiqueta} · {lineaResumen(v)}
+            </Text>
+          ))}
+        </View>
+      )}
 
       {modelo && (
         <View style={s.footer}>
@@ -103,6 +144,12 @@ const styles = (C: ReturnType<typeof useC>) => StyleSheet.create({
     paddingHorizontal: space(4), paddingVertical: space(2),
     borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.surface,
   },
+  resumen: {
+    paddingHorizontal: space(4), paddingVertical: space(3), gap: space(1),
+    borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.surface,
+  },
+  resumenTitulo: { color: C.textMuted, fontSize: FONT.xs, fontWeight: '700' },
+  resumenTexto:  { color: C.text, fontSize: FONT.md, fontWeight: '600' },
   footerText: { color: C.textMuted, fontSize: FONT.xs },
 });
 

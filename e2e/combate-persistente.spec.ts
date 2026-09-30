@@ -87,7 +87,8 @@ test('el Historial muestra la decisión como Mantiene, Cambia y Anula', async ({
   await mockApi(page, {
     revisiones: [fila('r1', 'mantener', 'AttackA'), fila('r2', 'cambiar', 'RiposteB'), fila('r3', 'anular', null), fila('r4', null, null)],
   });
-  await page.goto('/history');
+  await configurarCombate(page);
+  await page.getByTestId('nav-history').click();
   const filas = page.getByTestId('revision-row');
   await expect(filas).toHaveCount(4);
   await expect(filas.nth(0)).toContainText('Mantiene  ·  ATAQUE · A');
