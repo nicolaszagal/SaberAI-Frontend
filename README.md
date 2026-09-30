@@ -1,6 +1,6 @@
 # SaberAI-Frontend
 
-Interfaz web (Expo / React Native web, TypeScript) de SABRE.AI. Muestra la **sugerencia** del sistema para un tocado de sable; la decisión final es siempre del árbitro. Pantallas de la Validación 1: Inicio, Revisión VAR, Historial y Configuración del combate.
+Interfaz web (Expo / React Native web, TypeScript) de SABRE.AI. Muestra la **sugerencia** del sistema para un tocado de sable; la decisión final es siempre del árbitro. Pantallas de la Validación 1: Revisión VAR (pantalla por defecto), Historial y Combate.
 
 ## Comandos
 

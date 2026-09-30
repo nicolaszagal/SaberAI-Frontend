@@ -29,11 +29,10 @@ for (const t of TAMANOS) {
     test.describe(`${t.nombre} · ${tema}`, () => {
       test.use({ viewport: { width: t.width, height: t.height } });
 
-      test('inicio, combate, historial', async ({ page }) => {
+      test('combate, historial', async ({ page }) => {
         await mockApi(page, { revisiones: [REVISION] });
         await page.goto('/');
         await aTema(page, tema);
-        await page.screenshot({ path: base('01-inicio-sin-combate') });
         await page.getByTestId('nav-history').click();
         await page.getByTestId('revision-row').waitFor();
         await page.screenshot({ path: base('04-historial') });

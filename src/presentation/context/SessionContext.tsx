@@ -17,8 +17,6 @@ export interface ClipInput {
 }
 
 interface SessionContextValue {
-  /** Revisiones analizadas desde que se abrió la app (Inicio). */
-  analizadas:       number;
   revision:         RevisionAnalizada | null;
   sessionStatus:    SessionStatus;
   /** Instante (ms epoch) en que empezó el análisis en curso. */
@@ -37,7 +35,6 @@ const SessionCtx = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const { combate } = useCombat();
-  const [analizadas,      setAnalizadas]      = useState(0);
   const [revision,        setRevision]        = useState<RevisionAnalizada | null>(null);
   const [sessionStatus,   setSessionStatus]   = useState<SessionStatus>('idle');
   const [inicioAnalisis,  setInicioAnalisis]  = useState<number | null>(null);
@@ -76,7 +73,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       const r = await analyzeClip({ ...clip, combate });
       if (mia !== generacion.current) return;
       setRevision(r);
-      setAnalizadas(n => n + 1);
       setSessionStatus('done');
     } catch (e) {
       if (mia !== generacion.current) return;
@@ -106,7 +102,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <SessionCtx.Provider value={{
-      analizadas, revision, sessionStatus, inicioAnalisis, errorMessage,
+      revision, sessionStatus, inicioAnalisis, errorMessage,
       veredicto, veredictoStatus, veredictoError, submitClip, registrarVeredicto, resetSession,
     }}>
       {children}
