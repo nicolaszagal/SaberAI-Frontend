@@ -84,10 +84,8 @@ test('sesión completa del manual de usuario', async ({ page }) => {
   await page.locator('[data-testid^="arbitro-"]').filter({ hasText: ARBITRO_NOMBRE }).first().click();
   await page.getByTestId('tirador-a-alias').fill('Rojo');
   await page.getByTestId('tirador-a-brazo-right').click();
-  await page.getByTestId('tirador-a-menor-false').click();
   await page.getByTestId('tirador-b-alias').fill('Verde');
   await page.getByTestId('tirador-b-brazo-right').click();
-  await page.getByTestId('tirador-b-menor-false').click();
   await foto(page, '03-combate-formulario', true);
   await page.getByTestId('crear-combate-btn').click();
   await expect(page.getByTestId('combate-activo')).toBeVisible();

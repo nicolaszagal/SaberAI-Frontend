@@ -267,10 +267,6 @@ export async function configureMatch(input: ConfigCombateInput): Promise<string>
   const lado = (suf: 'A' | 'B', t: TiradorConfig) => ({
     [`alias_${suf}`]: t.alias,
     [`weapon_side_${suf}`]: t.brazo,
-    [`es_menor_${suf}`]: t.esMenor,
-    [`consentimiento_firmado_${suf}`]: t.consentimientoFirmado,
-    [`consentimiento_fecha_${suf}`]: t.consentimientoFirmado ? t.consentimientoFecha : null,
-    [`firmante_${suf}`]: t.esMenor && t.consentimientoFirmado ? t.firmante : null,
   });
   const res = await fetch(`${FOG_BASE_URL}/matches/config`, {
     method: 'POST',

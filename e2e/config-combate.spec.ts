@@ -11,11 +11,54 @@ test('POST /matches/config envía evento, pista, árbitro, alias y brazo armado 
   const body = (await enviado).postDataJSON() as Record<string, unknown>;
   expect(body).toMatchObject({
     evento_id: EVENTO_ID, pista: 'P1', arbitro_id: ARBITRO_ID,
-    alias_A: 'Rojo', weapon_side_A: 'right', es_menor_A: false,
-    alias_B: 'Verde', weapon_side_B: 'left', es_menor_B: false,
+    alias_A: 'Rojo', weapon_side_A: 'right',
+    alias_B: 'Verde', weapon_side_B: 'left',
   });
   await expect(page.getByTestId('combate-activo')).toContainText('A · Rojo (diestro) vs B · Verde (zurdo)');
   await expect(page.getByTestId('combate-activo')).toContainText('Pista P1 · Árbitro Árbitro Prueba');
+});
+
+const EVENTOS_SEMBRADOS = [
+  { id: EVENTO_ID, nombre: 'Evento de prueba', fecha: '2026-10-05', lugar: null, tipo: 'formativo' },
+  { id: '22222222-2222-4222-8222-222222222222', nombre: 'Validación 1', fecha: '2026-10-05', lugar: null, tipo: 'piloto' },
+];
+
+test('viene preseleccionado: Validación 1, árbitro único y pista P1; los brazos no', async ({ page }) => {
+  await page.route('**/eventos', route =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(EVENTOS_SEMBRADOS) }));
+  await page.goto('/config');
+  await expect(page.getByTestId('evento-22222222-2222-4222-8222-222222222222')).toContainText('✓');
+  await expect(page.getByTestId(`evento-${EVENTO_ID}`)).not.toContainText('✓');
+  await expect(page.getByTestId(`arbitro-${ARBITRO_ID}`)).toContainText('✓');
+  await expect(page.getByTestId('pista')).toHaveValue('P1');
+  for (const l of ['a', 'b']) {
+    for (const brazo of ['right', 'left']) {
+      await expect(page.getByTestId(`tirador-${l}-brazo-${brazo}`)).not.toContainText('✓');
+    }
+  }
+});
+
+test('el formulario ya no pide menor de edad ni consentimiento', async ({ page }) => {
+  await page.goto('/config');
+  await expect(page.getByTestId('crear-combate-btn')).toBeVisible();
+  await expect(page.getByText(/menor de edad|consentimiento|firmante/i)).toHaveCount(0);
+});
+
+test('con un clic en cada brazo y Crear combate queda listo, con alias por defecto', async ({ page }) => {
+  await page.route('**/eventos', route =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(EVENTOS_SEMBRADOS) }));
+  const enviado = page.waitForRequest(r => r.method() === 'POST' && r.url().endsWith('/matches/config'));
+  await page.goto('/config');
+  await page.getByTestId('tirador-a-brazo-left').click();
+  await page.getByTestId('tirador-b-brazo-right').click();
+  await page.getByTestId('crear-combate-btn').click();
+
+  const body = (await enviado).postDataJSON() as Record<string, unknown>;
+  expect(body).toEqual({
+    evento_id: '22222222-2222-4222-8222-222222222222', pista: 'P1', arbitro_id: ARBITRO_ID,
+    alias_A: 'Tirador A', weapon_side_A: 'left', alias_B: 'Tirador B', weapon_side_B: 'right',
+  });
+  await expect(page.getByTestId('combate-activo')).toContainText('A · Tirador A (zurdo) vs B · Tirador B (diestro)');
 });
 
 test('sin brazo armado de un tirador no se crea el combate (CU-01, 4a)', async ({ page }) => {
@@ -27,9 +70,7 @@ test('sin brazo armado de un tirador no se crea el combate (CU-01, 4a)', async (
   await page.getByTestId(`arbitro-${ARBITRO_ID}`).click();
   await page.getByTestId('tirador-a-alias').fill('Rojo');
   await page.getByTestId('tirador-a-brazo-right').click();
-  await page.getByTestId('tirador-a-menor-false').click();
   await page.getByTestId('tirador-b-alias').fill('Verde');
-  await page.getByTestId('tirador-b-menor-false').click();
   await page.getByTestId('crear-combate-btn').click();
 
   await expect(page.getByTestId('config-error')).toContainText('Falta el brazo armado del tirador B');
@@ -47,7 +88,6 @@ test('un error del Fog al guardar se muestra y no deja combate activo', async ({
   for (const l of ['a', 'b']) {
     await page.getByTestId(`tirador-${l}-alias`).fill(l);
     await page.getByTestId(`tirador-${l}-brazo-right`).click();
-    await page.getByTestId(`tirador-${l}-menor-false`).click();
   }
   await page.getByTestId('crear-combate-btn').click();
   await expect(page.getByTestId('config-error')).toContainText('422');
