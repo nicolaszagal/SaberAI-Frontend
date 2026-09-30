@@ -83,10 +83,8 @@ export async function configurarCombate(page: Page) {
   await page.getByTestId(`arbitro-${ARBITRO_ID}`).click();
   await page.getByTestId('tirador-a-alias').fill('Rojo');
   await page.getByTestId('tirador-a-brazo-right').click();
-  await page.getByTestId('tirador-a-menor-false').click();
   await page.getByTestId('tirador-b-alias').fill('Verde');
   await page.getByTestId('tirador-b-brazo-left').click();
-  await page.getByTestId('tirador-b-menor-false').click();
   await page.getByTestId('crear-combate-btn').click();
   await expect(page.getByTestId('combate-activo')).toBeVisible();
 }

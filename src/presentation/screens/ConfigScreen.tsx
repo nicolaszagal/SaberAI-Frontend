@@ -2,6 +2,9 @@
  * ConfigScreen — Configuración del combate (CU-01, F-039, RF-07)
  * Registra evento, pista, árbitro y los tiradores A y B con su brazo armado
  * (POST /matches/config). El combate creado queda activo para las revisiones.
+ * Evento "Validación 1" y árbitro único vienen preseleccionados, la pista
+ * viene en "P1" y los alias son opcionales; el brazo armado es obligatorio y
+ * sin preselección (V01).
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
@@ -20,21 +23,18 @@ import type {
 interface TiradorForm {
   alias: string;
   brazo: BrazoArmado | null;
-  esMenor: boolean | null;
-  firmado: boolean;
-  fecha: string;
-  firmante: string;
 }
 
-const TIRADOR_VACIO: TiradorForm = { alias: '', brazo: null, esMenor: null, firmado: false, fecha: '', firmante: '' };
+const TIRADOR_VACIO: TiradorForm = { alias: '', brazo: null };
+const PISTA_POR_DEFECTO = 'P1';
+const EVENTO_POR_DEFECTO = 'Validación 1';
+
+/** Alias del tirador: el escrito o, si queda vacío, "Tirador A" / "Tirador B". */
+const aliasDe = (lado: 'A' | 'B', t: TiradorForm) => t.alias.trim() || `Tirador ${lado}`;
 
 /** Devuelve el primer campo faltante del tirador o null si está completo. */
 function validarTirador(lado: 'A' | 'B', t: TiradorForm): string | null {
-  if (!t.alias.trim()) return `Falta el alias del tirador ${lado}`;
   if (!t.brazo) return `Falta el brazo armado del tirador ${lado}`;
-  if (t.esMenor === null) return `Indica si el tirador ${lado} es menor de edad`;
-  if (t.firmado && !t.fecha.trim()) return `Falta la fecha del consentimiento del tirador ${lado}`;
-  if (t.firmado && t.esMenor && !t.firmante.trim()) return `Falta el firmante del tirador ${lado} (menor de edad)`;
   return null;
 }
 
@@ -84,34 +84,14 @@ function TiradorSection({ lado, value, onChange }: {
   return (
     <View style={s.card}>
       <Text style={[s.cardTitle, { color }]}>Tirador {FENCER_LABEL[lado === 'A' ? 'ROJ' : 'VER']}</Text>
-      <Field label="Alias">
+      <Field label="Alias (opcional)">
         <TextInput testID={`${id}-alias`} style={s.input} value={value.alias}
-          onChangeText={alias => set({ alias })} placeholderTextColor={C.textMuted} />
+          onChangeText={alias => set({ alias })} placeholder={`Tirador ${lado}`} placeholderTextColor={C.textMuted} />
       </Field>
       <Field label="Brazo armado">
         <Choice testID={`${id}-brazo`} value={value.brazo} onChange={brazo => set({ brazo })}
           options={[{ value: 'right', label: 'Diestro' }, { value: 'left', label: 'Zurdo' }]} />
       </Field>
-      <Field label="Menor de edad">
-        <Choice testID={`${id}-menor`} value={value.esMenor} onChange={esMenor => set({ esMenor })}
-          options={[{ value: false, label: 'No' }, { value: true, label: 'Sí' }]} />
-      </Field>
-      <Field label="Consentimiento firmado">
-        <Choice testID={`${id}-firmado`} value={value.firmado} onChange={firmado => set({ firmado })}
-          options={[{ value: false, label: 'No' }, { value: true, label: 'Sí' }]} />
-      </Field>
-      {value.firmado && (
-        <Field label="Fecha del consentimiento (AAAA-MM-DD)">
-          <TextInput testID={`${id}-fecha`} style={s.input} value={value.fecha}
-            onChangeText={fecha => set({ fecha })} placeholder="2026-10-05" placeholderTextColor={C.textMuted} />
-        </Field>
-      )}
-      {value.firmado && value.esMenor === true && (
-        <Field label="Firmante (apoderado)">
-          <TextInput testID={`${id}-firmante`} style={s.input} value={value.firmante}
-            onChangeText={firmante => set({ firmante })} placeholderTextColor={C.textMuted} />
-        </Field>
-      )}
     </View>
   );
 }
@@ -151,7 +131,7 @@ export function ConfigScreen() {
 
   const [eventoId, setEventoId]   = useState<string | null>(null);
   const [arbitroId, setArbitroId] = useState<string | null>(null);
-  const [pista, setPista]         = useState('');
+  const [pista, setPista]         = useState(PISTA_POR_DEFECTO);
   const [a, setA] = useState<TiradorForm>(TIRADOR_VACIO);
   const [b, setB] = useState<TiradorForm>(TIRADOR_VACIO);
 
@@ -163,7 +143,15 @@ export function ConfigScreen() {
     setCatalogoError(null);
     setCargandoCatalogo(true);
     Promise.all([getEventos(), getArbitros()])
-      .then(([ev, ar]) => { if (activo) { setEventos(ev); setArbitros(ar); } })
+      .then(([ev, ar]) => {
+        if (!activo) return;
+        setEventos(ev);
+        setArbitros(ar);
+        // Preselección sin pisar lo que el usuario ya eligió al recargar.
+        const porDefecto = ev.find(e => e.nombre === EVENTO_POR_DEFECTO);
+        if (porDefecto) setEventoId(actual => actual ?? porDefecto.id);
+        if (ar.length === 1) setArbitroId(actual => actual ?? ar[0].id);
+      })
       .catch(e => { if (activo) setCatalogoError(e instanceof Error ? e.message : 'No se pudo leer el catálogo'); })
       .finally(() => { if (activo) setCargandoCatalogo(false); });
     return () => { activo = false; };
@@ -184,15 +172,13 @@ export function ConfigScreen() {
     try {
       const matchId = await configureMatch({
         eventoId: eventoId!, pista: pista.trim(), arbitroId: arbitroId!,
-        a: { alias: a.alias.trim(), brazo: a.brazo!, esMenor: a.esMenor!, consentimientoFirmado: a.firmado,
-             consentimientoFecha: a.fecha.trim() || null, firmante: a.firmante.trim() || null },
-        b: { alias: b.alias.trim(), brazo: b.brazo!, esMenor: b.esMenor!, consentimientoFirmado: b.firmado,
-             consentimientoFecha: b.fecha.trim() || null, firmante: b.firmante.trim() || null },
+        a: { alias: aliasDe('A', a), brazo: a.brazo! },
+        b: { alias: aliasDe('B', b), brazo: b.brazo! },
       });
       setCombate({
         matchId, eventoId: eventoId!, pista: pista.trim(), arbitroId: arbitroId!,
         arbitro: arbitros.find(x => x.id === arbitroId)!.nombre,
-        aliasA: a.alias.trim(), aliasB: b.alias.trim(),
+        aliasA: aliasDe('A', a), aliasB: aliasDe('B', b),
         brazoA: a.brazo!, brazoB: b.brazo!,
       });
     } catch (e) {

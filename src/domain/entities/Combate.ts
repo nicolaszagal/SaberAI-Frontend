@@ -29,10 +29,6 @@ export interface UsuarioCatalogo {
 export interface TiradorConfig {
   alias: string;
   brazo: BrazoArmado;
-  esMenor: boolean;
-  consentimientoFirmado: boolean;
-  consentimientoFecha: string | null;
-  firmante: string | null;
 }
 
 export interface ConfigCombateInput {
