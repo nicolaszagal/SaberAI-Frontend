@@ -7,6 +7,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useC } from '../context/ThemeContext';
 import { useSession } from '../context/SessionContext';
+import type { Decision } from '../../domain/entities/Combate';
 import { Button } from './Button';
 import { StateMessage } from './StateMessage';
 import { useShortcut } from '../hooks/useShortcut';
@@ -179,9 +180,10 @@ type Eleccion = { tipo: 'clase'; clase: string } | { tipo: 'anular' } | null;
 /**
  * Decisión del árbitro (contexto_sabre.md §8, DEF-28). Muestra la sugerencia y pregunta
  * "¿Modifica la clase sugerida?" sin respuesta por defecto: No registra la clase sugerida
- * como clase final, Sí despliega las 6 clases. Anular está siempre disponible. Con una clase,
- * responde "¿Cambia la decisión original en pista?" (Sí = cambiar, No = mantener), también
- * sin respuesta por defecto. Nada se envía sin un resumen confirmado.
+ * como clase final, Sí despliega las 6 clases. Anular está siempre disponible. El sistema
+ * deduce `decision`: mantener si la clase final es la sugerida, cambiar si es otra. Solo sin
+ * sugerencia no hay con qué comparar y se pregunta "¿Cambia la decisión original en pista?".
+ * Nada se envía sin un resumen confirmado.
  */
 export function PasoDecision() {
   const C = useC();
@@ -202,7 +204,13 @@ export function PasoDecision() {
   const eligeClase = !anula && (sug === null || modifica === true);
   const clase = modifica === false && sug ? sug.action
     : eleccion?.tipo === 'clase' ? eleccion.clase : null;
-  const completo = anula || (clase !== null && cambia !== null);
+  // Con sugerencia, la decisión se deduce de la clase final; sin ella, la declara el árbitro.
+  const preguntaCambia = sug === null && clase !== null;
+  const decision: Decision | null = anula ? 'anular'
+    : clase === null ? null
+    : sug ? (clase === sug.action ? 'mantener' : 'cambiar')
+    : cambia === null ? null : cambia ? 'cambiar' : 'mantener';
+  const completo = decision !== null;
 
   // Cada análisis (o su reinicio) entrega un objeto de revisión nuevo: la elección de un clip
   // anterior no debe sobrevivir y registrarse como veredicto del clip actual.
@@ -214,8 +222,8 @@ export function PasoDecision() {
   function limpiar() { setEleccion(null); setModifica(null); setCambia(null); }
   function enviar() {
     if (!completo) return;
-    if (anula) void registrarVeredicto('anular', null);
-    else if (clase !== null) void registrarVeredicto(cambia ? 'cambiar' : 'mantener', clase);
+    if (decision === 'anular') void registrarVeredicto('anular', null);
+    else if (decision !== null && clase !== null) void registrarVeredicto(decision, clase);
   }
 
   useShortcut({ tecla: 'a', activo: puedeDecidir }, elegirAnular);
@@ -262,7 +270,7 @@ export function PasoDecision() {
             bg={C.anularBg} border={C.red} color={C.anularText}
           />
 
-          {clase !== null && (
+          {preguntaCambia && (
             <View testID="pregunta-cambia" style={s.selector}>
               <Text style={s.etiqueta}>¿Cambia la decisión original en pista?</Text>
               <View style={s.fila}>
@@ -278,7 +286,7 @@ export function PasoDecision() {
               <Text style={s.valor}>
                 {anula
                   ? 'Anula la acción · sin clase final'
-                  : `${cambia ? 'Cambia' : 'Mantiene'} la decisión en pista · clase final: ${claseCompleta(clase!)}`}
+                  : `${decision === 'cambiar' ? 'Cambia' : 'Mantiene'} la decisión en pista · clase final: ${claseCompleta(clase!)}`}
               </Text>
             </View>
           )}

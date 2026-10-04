@@ -267,11 +267,8 @@ test.describe('Paso 3 · Decisión del árbitro', () => {
     await analizarClip(page);
     await page.getByTestId('modifica-no').click();
     await expect(page.getByTestId('selector-clase')).toHaveCount(0);
-    await expect(page.getByTestId('pregunta-cambia')).toContainText('¿Cambia la decisión original en pista?');
-    await expect(page.getByTestId('decision-falta')).toContainText('responder si cambia');
-    await expect(enviar(page)).toHaveAttribute('aria-disabled', 'true');
-
-    await page.getByTestId('cambia-no').click();
+    await expect(page.getByTestId('pregunta-cambia')).toHaveCount(0);
+    await expect(page.getByTestId('decision-falta')).toHaveCount(0);
     await expect(page.getByTestId('resumen-decision')).toContainText('Mantiene la decisión en pista · clase final: Contraataque · B · VER');
     expect(cuerpos).toHaveLength(0); // elegir no envía: falta confirmar
 
@@ -301,21 +298,32 @@ test.describe('Paso 3 · Decisión del árbitro', () => {
     await analizarClip(page);
     await page.getByTestId('modifica-si').click();
     await page.getByTestId('clase-RiposteB').click();
-    await page.getByTestId('cambia-no').click();
-    await expect(page.getByTestId('resumen-decision')).toContainText('Mantiene la decisión en pista · clase final: Riposte · B · VER');
+    await expect(page.getByTestId('pregunta-cambia')).toHaveCount(0);
+    await expect(page.getByTestId('resumen-decision')).toContainText('Cambia la decisión en pista · clase final: Riposte · B · VER');
 
     await enviar(page).click();
-    await expect(page.getByTestId('veredicto-confirmado')).toContainText('Mantiene · Riposte · B · VER');
-    expect(cuerpos).toEqual([{ decision: 'mantener', clase_final: 'RiposteB', arbitro_id: ARBITRO_ID }]);
+    await expect(page.getByTestId('veredicto-confirmado')).toContainText('Cambia · Riposte · B · VER');
+    expect(cuerpos).toEqual([{ decision: 'cambiar', clase_final: 'RiposteB', arbitro_id: ARBITRO_ID }]);
   });
 
-  test('cambiar: la respuesta Sí registra cambiar con la clase elegida', async ({ page }) => {
+  test('modificar y elegir la misma clase sugerida se deduce como mantener', async ({ page }) => {
+    await mockClip(page);
+    const cuerpos = await mockVeredicto(page);
+    await analizarClip(page);
+    await page.getByTestId('modifica-si').click();
+    await page.getByTestId('clase-AttackA').click();
+    await expect(page.getByTestId('resumen-decision')).toContainText('Mantiene la decisión en pista · clase final: Ataque · A · ROJ');
+    await enviar(page).click();
+    await expect(page.getByTestId('veredicto-confirmado')).toContainText('Mantiene · Ataque · A · ROJ');
+    expect(cuerpos).toEqual([{ decision: 'mantener', clase_final: 'AttackA', arbitro_id: ARBITRO_ID }]);
+  });
+
+  test('cambiar: elegir otra clase registra cambiar sin preguntarlo', async ({ page }) => {
     await mockClip(page);
     const cuerpos = await mockVeredicto(page);
     await analizarClip(page);
     await page.getByTestId('modifica-si').click();
     await page.getByTestId('clase-ContrattackB').click();
-    await page.getByTestId('cambia-si').click();
     await expect(page.getByTestId('resumen-decision')).toContainText('Cambia la decisión en pista · clase final: Contraataque · B · VER');
 
     await enviar(page).click();
@@ -330,11 +338,10 @@ test.describe('Paso 3 · Decisión del árbitro', () => {
     await analizarClip(page);
     await page.getByTestId('modifica-si').click();
     await page.getByTestId('clase-RiposteB').click();
-    await page.getByTestId('cambia-si').click();
     await page.getByTestId('modifica-no').click();
-    await expect(page.getByTestId('cambia-si')).not.toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByTestId('resumen-decision')).toHaveCount(0);
+    await expect(page.getByTestId('resumen-decision')).toContainText('clase final: Ataque · A · ROJ');
     await page.getByTestId('modifica-si').click();
+    await expect(page.getByTestId('resumen-decision')).toHaveCount(0);
     await expect(page.getByTestId('clase-RiposteB')).not.toHaveAttribute('aria-selected', 'true');
     await expect(enviar(page)).toHaveAttribute('aria-disabled', 'true');
   });
@@ -345,7 +352,6 @@ test.describe('Paso 3 · Decisión del árbitro', () => {
     await analizarClip(page);
     await page.getByTestId('modifica-si').click();
     await page.getByTestId('clase-AttackB').click();
-    await page.getByTestId('cambia-si').click();
     await page.keyboard.press('a');
     await expect(page.getByTestId('pregunta-cambia')).toHaveCount(0);
     await expect(page.getByTestId('resumen-decision')).toContainText('Anula');
@@ -362,7 +368,6 @@ test.describe('Paso 3 · Decisión del árbitro', () => {
     await analizarClip(page);
     await page.getByTestId('modifica-si').click();
     await page.getByTestId('clase-AttackB').click();
-    await page.getByTestId('cambia-no').click();
     await enviar(page).click();
     await expect(page.getByTestId('veredicto-confirmado')).toBeVisible();
 
@@ -380,11 +385,10 @@ test.describe('Paso 3 · Decisión del árbitro', () => {
 
     // Solo "No": se registra la sugerencia del clip nuevo, no la elección del anterior.
     await page.getByTestId('modifica-no').click();
-    await page.getByTestId('cambia-no').click();
     await enviar(page).click();
     await expect(page.getByTestId('veredicto-confirmado')).toContainText('Mantiene · Contraataque · B · VER');
     expect(cuerpos).toEqual([
-      { decision: 'mantener', clase_final: 'AttackB', arbitro_id: ARBITRO_ID },
+      { decision: 'cambiar', clase_final: 'AttackB', arbitro_id: ARBITRO_ID },
       { decision: 'mantener', clase_final: 'ContrattackB', arbitro_id: ARBITRO_ID },
     ]);
   });
@@ -394,7 +398,6 @@ test.describe('Paso 3 · Decisión del árbitro', () => {
     await mockVeredicto(page, 409);
     await analizarClip(page);
     await page.getByTestId('modifica-no').click();
-    await page.getByTestId('cambia-no').click();
     await enviar(page).click();
     await expect(page.getByTestId('veredicto-error')).toContainText('ya tiene un veredicto');
     await expect(page.getByTestId('veredicto-confirmado')).toHaveCount(0);
@@ -426,6 +429,9 @@ test.describe('clasificación no disponible', () => {
     await expect(page.getByTestId('pregunta-modifica')).toHaveCount(0);
     await expect(page.getByTestId('selector-clase')).not.toContainText('Sugerencia del sistema');
     await page.getByTestId('clase-RiposteA').click();
+    // Sin sugerencia no hay con qué comparar: aquí sí se pregunta, sin respuesta por defecto.
+    await expect(page.getByTestId('pregunta-cambia')).toContainText('¿Cambia la decisión original en pista?');
+    await expect(page.getByTestId('veredicto-enviar')).toHaveAttribute('aria-disabled', 'true');
     await page.getByTestId('cambia-si').click();
     await page.getByTestId('veredicto-enviar').click();
     await expect(page.getByTestId('veredicto-confirmado')).toContainText('Cambia · Riposte · A · ROJ');
