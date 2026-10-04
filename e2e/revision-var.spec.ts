@@ -429,10 +429,9 @@ test.describe('clasificación no disponible', () => {
     await expect(page.getByTestId('pregunta-modifica')).toHaveCount(0);
     await expect(page.getByTestId('selector-clase')).not.toContainText('Sugerencia del sistema');
     await page.getByTestId('clase-RiposteA').click();
-    // Sin sugerencia no hay con qué comparar: aquí sí se pregunta, sin respuesta por defecto.
-    await expect(page.getByTestId('pregunta-cambia')).toContainText('¿Cambia la decisión original en pista?');
-    await expect(page.getByTestId('veredicto-enviar')).toHaveAttribute('aria-disabled', 'true');
-    await page.getByTestId('cambia-si').click();
+    // Sin sugerencia la clase la decidió el árbitro: se deduce cambiar, sin preguntarlo.
+    await expect(page.getByTestId('pregunta-cambia')).toHaveCount(0);
+    await expect(page.getByTestId('resumen-decision')).toContainText('Cambia la decisión en pista · clase final: Riposte · A · ROJ');
     await page.getByTestId('veredicto-enviar').click();
     await expect(page.getByTestId('veredicto-confirmado')).toContainText('Cambia · Riposte · A · ROJ');
     expect(cuerpos).toEqual([{ decision: 'cambiar', clase_final: 'RiposteA', arbitro_id: ARBITRO_ID }]);

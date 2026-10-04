@@ -181,8 +181,8 @@ type Eleccion = { tipo: 'clase'; clase: string } | { tipo: 'anular' } | null;
  * Decisión del árbitro (contexto_sabre.md §8, DEF-28). Muestra la sugerencia y pregunta
  * "¿Modifica la clase sugerida?" sin respuesta por defecto: No registra la clase sugerida
  * como clase final, Sí despliega las 6 clases. Anular está siempre disponible. El sistema
- * deduce `decision`: mantener si la clase final es la sugerida, cambiar si es otra. Solo sin
- * sugerencia no hay con qué comparar y se pregunta "¿Cambia la decisión original en pista?".
+ * deduce `decision`: mantener si la clase final es la sugerida, cambiar si es otra. Sin
+ * sugerencia siempre es cambiar: la clase final la decidió el árbitro. Nunca se pregunta.
  * Nada se envía sin un resumen confirmado.
  */
 export function PasoDecision() {
@@ -191,7 +191,6 @@ export function PasoDecision() {
   const { revision, sessionStatus, veredicto, veredictoStatus, veredictoError, registrarVeredicto } = useSession();
   const [eleccion, setEleccion] = useState<Eleccion>(null);
   const [modifica, setModifica] = useState<boolean | null>(null);
-  const [cambia, setCambia] = useState<boolean | null>(null);
 
   const sug = revision?.sugerencia ?? null;
   const registrado = veredictoStatus === 'registrado';
@@ -204,22 +203,20 @@ export function PasoDecision() {
   const eligeClase = !anula && (sug === null || modifica === true);
   const clase = modifica === false && sug ? sug.action
     : eleccion?.tipo === 'clase' ? eleccion.clase : null;
-  // Con sugerencia, la decisión se deduce de la clase final; sin ella, la declara el árbitro.
-  const preguntaCambia = sug === null && clase !== null;
+  // La decisión se deduce de la clase final; sin sugerencia la clase la decidió el árbitro.
   const decision: Decision | null = anula ? 'anular'
     : clase === null ? null
-    : sug ? (clase === sug.action ? 'mantener' : 'cambiar')
-    : cambia === null ? null : cambia ? 'cambiar' : 'mantener';
+    : sug && clase === sug.action ? 'mantener' : 'cambiar';
   const completo = decision !== null;
 
   // Cada análisis (o su reinicio) entrega un objeto de revisión nuevo: la elección de un clip
   // anterior no debe sobrevivir y registrarse como veredicto del clip actual.
-  useEffect(() => { setEleccion(null); setModifica(null); setCambia(null); }, [revision]);
+  useEffect(() => { setEleccion(null); setModifica(null); }, [revision]);
 
-  function responderModifica(m: boolean) { setModifica(m); setEleccion(null); setCambia(null); }
+  function responderModifica(m: boolean) { setModifica(m); setEleccion(null); }
   function elegirClase(c: string) { setEleccion({ tipo: 'clase', clase: c }); }
-  function elegirAnular() { setEleccion({ tipo: 'anular' }); setModifica(null); setCambia(null); }
-  function limpiar() { setEleccion(null); setModifica(null); setCambia(null); }
+  function elegirAnular() { setEleccion({ tipo: 'anular' }); setModifica(null); }
+  function limpiar() { setEleccion(null); setModifica(null); }
   function enviar() {
     if (!completo) return;
     if (decision === 'anular') void registrarVeredicto('anular', null);
@@ -270,16 +267,6 @@ export function PasoDecision() {
             bg={C.anularBg} border={C.red} color={C.anularText}
           />
 
-          {preguntaCambia && (
-            <View testID="pregunta-cambia" style={s.selector}>
-              <Text style={s.etiqueta}>¿Cambia la decisión original en pista?</Text>
-              <View style={s.fila}>
-                <Button testID="cambia-si" label="Sí" selected={cambia === true} onPress={() => setCambia(true)} />
-                <Button testID="cambia-no" label="No" selected={cambia === false} onPress={() => setCambia(false)} />
-              </View>
-            </View>
-          )}
-
           {completo && (
             <View testID="resumen-decision" style={[s.tarjeta, { borderLeftColor: C.blue }]}>
               <Text style={s.etiqueta}>Resumen antes de registrar</Text>
@@ -300,9 +287,7 @@ export function PasoDecision() {
           </View>
           {!completo && (
             <Text testID="decision-falta" style={s.nota}>
-              Falta: {clase === null
-                ? (sug && modifica === null ? 'indicar si modifica la clase sugerida o anular' : 'elegir la clase final o anular')
-                : 'responder si cambia la decisión original en pista'}.
+              Falta: {sug && modifica === null ? 'indicar si modifica la clase sugerida o anular' : 'elegir la clase final o anular'}.
             </Text>
           )}
         </>
