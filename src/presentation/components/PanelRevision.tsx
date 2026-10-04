@@ -3,7 +3,7 @@
  * Paso 1 · Clip, Paso 2 · Sugerencia, Paso 3 · Decisión del árbitro.
  * Todo lo que muestra el sistema es una sugerencia (RNF-01): la decisión es del árbitro.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useC } from '../context/ThemeContext';
 import { useSession } from '../context/SessionContext';
@@ -198,6 +198,10 @@ export function PasoDecision() {
   const anula = eleccion?.tipo === 'anular';
   const clase = eleccion?.tipo === 'clase' ? eleccion.clase : null;
   const completo = anula || (clase !== null && cambia !== null);
+
+  // Cada análisis (o su reinicio) entrega un objeto de revisión nuevo: la elección de un clip
+  // anterior no debe sobrevivir y registrarse como veredicto del clip actual.
+  useEffect(() => { setEleccion(null); setCambia(null); }, [revision]);
 
   function elegirClase(c: string) { setEleccion({ tipo: 'clase', clase: c }); }
   function elegirAnular() { setEleccion({ tipo: 'anular' }); setCambia(null); }

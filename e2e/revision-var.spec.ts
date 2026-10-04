@@ -326,6 +326,28 @@ test.describe('Paso 3 · Decisión del árbitro', () => {
     expect(cuerpos).toHaveLength(0);
   });
 
+  test('un clip nuevo no hereda la elección del clip anterior', async ({ page }) => {
+    await mockClip(page);
+    const cuerpos = await mockVeredicto(page);
+    await analizarClip(page);
+    await page.getByTestId('clase-AttackA').click();
+    await page.getByTestId('cambia-no').click();
+    await enviar(page).click();
+    await expect(page.getByTestId('veredicto-confirmado')).toBeVisible();
+
+    // Segundo clip: la sugerencia es otra y la decisión debe empezar en blanco.
+    await mockClip(page, { ...CLIP_OK, fencer: 'VER', action: 'ContrattackB', confidence: 0.55 });
+    await analizarClip(page);
+    await expect(page.getByTestId('action-label')).toHaveText('Contraataque');
+    for (const clase of CLASES) {
+      await expect(page.getByTestId(`clase-${clase}`)).not.toHaveAttribute('aria-selected', 'true');
+    }
+    await expect(page.getByTestId('pregunta-cambia')).toHaveCount(0);
+    await expect(page.getByTestId('resumen-decision')).toHaveCount(0);
+    await expect(enviar(page)).toHaveAttribute('aria-disabled', 'true');
+    expect(cuerpos).toEqual([{ decision: 'mantener', clase_final: 'AttackA', arbitro_id: ARBITRO_ID }]);
+  });
+
   test('si el Fog rechaza el veredicto lo dice y permite volver a confirmar', async ({ page }) => {
     await mockClip(page);
     await mockVeredicto(page, 409);
