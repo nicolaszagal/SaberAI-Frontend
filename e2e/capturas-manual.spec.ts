@@ -108,7 +108,7 @@ test('sesión completa del manual de usuario', async ({ page }) => {
   await foto(page, '05-revision-analizando');
   await page.getByTestId('status-done').waitFor({ timeout: 90_000 });
   await foto(page, '06-revision-sugerencia');
-  await page.locator('[data-testid^="clase-"]').filter({ hasText: 'Sugerencia del sistema' }).click();
+  await page.getByTestId('modifica-no').click();
   await page.getByTestId('cambia-no').click();
   await page.getByTestId('resumen-decision').waitFor();
   await page.getByTestId('veredicto-enviar').click();
@@ -119,6 +119,7 @@ test('sesión completa del manual de usuario', async ({ page }) => {
   await prepararClip(page, CLIP_2, { a: CLIP_2_T_MS, b: CLIP_2_T_B_MS });
   await page.getByTestId('analizar-btn').click();
   await page.getByTestId('status-done').waitFor({ timeout: 90_000 });
+  await page.getByTestId('modifica-si').click();
   await page.getByTestId('selector-clase').waitFor();
   await page.getByTestId('clase-AttackA').click();
   await page.getByTestId('cambia-si').click();
