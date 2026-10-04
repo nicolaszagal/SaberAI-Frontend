@@ -3,10 +3,11 @@
  * Paso 1 · Clip, Paso 2 · Sugerencia, Paso 3 · Decisión del árbitro.
  * Todo lo que muestra el sistema es una sugerencia (RNF-01): la decisión es del árbitro.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useC } from '../context/ThemeContext';
 import { useSession } from '../context/SessionContext';
+import type { Decision } from '../../domain/entities/Combate';
 import { Button } from './Button';
 import { StateMessage } from './StateMessage';
 import { useShortcut } from '../hooks/useShortcut';
@@ -177,17 +178,19 @@ export function PasoSugerencia() {
 type Eleccion = { tipo: 'clase'; clase: string } | { tipo: 'anular' } | null;
 
 /**
- * Decisión del árbitro (contexto_sabre.md §8, DEF-28). Siempre elige la clase final
- * entre las 6, o anula. La sugerencia se resalta pero nunca se preselecciona. Con una
- * clase, responde "¿Cambia la decisión original en pista?" (Sí = cambiar, No = mantener),
- * sin respuesta por defecto. Nada se envía sin un resumen confirmado.
+ * Decisión del árbitro (contexto_sabre.md §8, DEF-28). Muestra la sugerencia y pregunta
+ * "¿Modifica la clase sugerida?" sin respuesta por defecto: No registra la clase sugerida
+ * como clase final, Sí despliega las 6 clases. Anular está siempre disponible. El sistema
+ * deduce `decision`: mantener si la clase final es la sugerida, cambiar si es otra. Sin
+ * sugerencia siempre es cambiar: la clase final la decidió el árbitro. Nunca se pregunta.
+ * Nada se envía sin un resumen confirmado.
  */
 export function PasoDecision() {
   const C = useC();
   const s = useMemo(() => styles(C), [C]);
   const { revision, sessionStatus, veredicto, veredictoStatus, veredictoError, registrarVeredicto } = useSession();
   const [eleccion, setEleccion] = useState<Eleccion>(null);
-  const [cambia, setCambia] = useState<boolean | null>(null);
+  const [modifica, setModifica] = useState<boolean | null>(null);
 
   const sug = revision?.sugerencia ?? null;
   const registrado = veredictoStatus === 'registrado';
@@ -196,56 +199,73 @@ export function PasoDecision() {
   const puedeDecidir = sessionStatus === 'done' && !!revision?.revisionId && !registrado && !enviando;
 
   const anula = eleccion?.tipo === 'anular';
-  const clase = eleccion?.tipo === 'clase' ? eleccion.clase : null;
-  const completo = anula || (clase !== null && cambia !== null);
+  // Sin sugerencia no hay nada que mantener: el árbitro elige la clase directamente.
+  const eligeClase = !anula && (sug === null || modifica === true);
+  const clase = modifica === false && sug ? sug.action
+    : eleccion?.tipo === 'clase' ? eleccion.clase : null;
+  // La decisión se deduce de la clase final; sin sugerencia la clase la decidió el árbitro.
+  const decision: Decision | null = anula ? 'anular'
+    : clase === null ? null
+    : sug && clase === sug.action ? 'mantener' : 'cambiar';
+  const completo = decision !== null;
 
+  // Cada análisis (o su reinicio) entrega un objeto de revisión nuevo: la elección de un clip
+  // anterior no debe sobrevivir y registrarse como veredicto del clip actual.
+  useEffect(() => { setEleccion(null); setModifica(null); }, [revision]);
+
+  function responderModifica(m: boolean) { setModifica(m); setEleccion(null); }
   function elegirClase(c: string) { setEleccion({ tipo: 'clase', clase: c }); }
-  function elegirAnular() { setEleccion({ tipo: 'anular' }); setCambia(null); }
-  function limpiar() { setEleccion(null); setCambia(null); }
+  function elegirAnular() { setEleccion({ tipo: 'anular' }); setModifica(null); }
+  function limpiar() { setEleccion(null); setModifica(null); }
   function enviar() {
     if (!completo) return;
-    if (anula) void registrarVeredicto('anular', null);
-    else if (clase !== null) void registrarVeredicto(cambia ? 'cambiar' : 'mantener', clase);
+    if (decision === 'anular') void registrarVeredicto('anular', null);
+    else if (decision !== null && clase !== null) void registrarVeredicto(decision, clase);
   }
 
   useShortcut({ tecla: 'a', activo: puedeDecidir }, elegirAnular);
-  useShortcut({ tecla: 'Escape', activo: puedeDecidir && eleccion !== null }, limpiar);
+  useShortcut({ tecla: 'Escape', activo: puedeDecidir && (eleccion !== null || modifica !== null) }, limpiar);
 
   return (
     <Paso numero={3} titulo="Decisión del árbitro" testID="paso-decision">
       {puedeDecidir && (
         <>
-          <View testID="selector-clase" style={s.selector}>
-            <Text style={s.etiqueta}>Clase final (elige una de las 6)</Text>
-            {CLASES_MODELO.map(c => {
-              const esSugerida = sug?.action === c;
-              return (
-                <Button
-                  key={c} testID={`clase-${c}`}
-                  label={`${claseCompleta(c)}${esSugerida ? ' · Sugerencia del sistema' : ''}`}
-                  selected={clase === c}
-                  onPress={() => elegirClase(c)}
-                  bg={esSugerida ? C.cyan + '22' : undefined}
-                  border={esSugerida ? C.cyan : undefined}
-                />
-              );
-            })}
-          </View>
+          {sug && (
+            <View testID="pregunta-modifica" style={s.selector}>
+              <Text testID="sugerencia-decision" style={s.valor}>
+                Sugerencia del sistema: {claseCompleta(sug.action)}
+              </Text>
+              <Text style={s.etiqueta}>¿Modifica la clase sugerida?</Text>
+              <View style={s.fila}>
+                <Button testID="modifica-si" label="Sí" selected={modifica === true} onPress={() => responderModifica(true)} />
+                <Button testID="modifica-no" label="No" selected={modifica === false} onPress={() => responderModifica(false)} />
+              </View>
+            </View>
+          )}
+
+          {eligeClase && (
+            <View testID="selector-clase" style={s.selector}>
+              <Text style={s.etiqueta}>Clase final (elige una de las 6)</Text>
+              {CLASES_MODELO.map(c => {
+                const esSugerida = sug?.action === c;
+                return (
+                  <Button
+                    key={c} testID={`clase-${c}`}
+                    label={`${claseCompleta(c)}${esSugerida ? ' · Sugerencia del sistema' : ''}`}
+                    selected={clase === c}
+                    onPress={() => elegirClase(c)}
+                    bg={esSugerida ? C.cyan + '22' : undefined}
+                    border={esSugerida ? C.cyan : undefined}
+                  />
+                );
+              })}
+            </View>
+          )}
           <Button
             testID="veredicto-anular" label="Anular la acción" shortcut="A" onPress={elegirAnular}
             selected={anula}
             bg={C.anularBg} border={C.red} color={C.anularText}
           />
-
-          {clase !== null && (
-            <View testID="pregunta-cambia" style={s.selector}>
-              <Text style={s.etiqueta}>¿Cambia la decisión original en pista?</Text>
-              <View style={s.fila}>
-                <Button testID="cambia-si" label="Sí" selected={cambia === true} onPress={() => setCambia(true)} />
-                <Button testID="cambia-no" label="No" selected={cambia === false} onPress={() => setCambia(false)} />
-              </View>
-            </View>
-          )}
 
           {completo && (
             <View testID="resumen-decision" style={[s.tarjeta, { borderLeftColor: C.blue }]}>
@@ -253,7 +273,7 @@ export function PasoDecision() {
               <Text style={s.valor}>
                 {anula
                   ? 'Anula la acción · sin clase final'
-                  : `${cambia ? 'Cambia' : 'Mantiene'} la decisión en pista · clase final: ${claseCompleta(clase!)}`}
+                  : `${decision === 'cambiar' ? 'Cambia' : 'Mantiene'} la decisión en pista · clase final: ${claseCompleta(clase!)}`}
               </Text>
             </View>
           )}
@@ -263,11 +283,11 @@ export function PasoDecision() {
               testID="veredicto-enviar" variant="primary" label="Confirmar y registrar"
               onPress={enviar} disabled={!completo}
             />
-            <Button testID="decision-limpiar" label="Borrar elección" shortcut="Esc" onPress={limpiar} disabled={eleccion === null} />
+            <Button testID="decision-limpiar" label="Borrar elección" shortcut="Esc" onPress={limpiar} disabled={eleccion === null && modifica === null} />
           </View>
           {!completo && (
             <Text testID="decision-falta" style={s.nota}>
-              Falta: {eleccion === null ? 'elegir la clase final o anular' : 'responder si cambia la decisión original en pista'}.
+              Falta: {sug && modifica === null ? 'indicar si modifica la clase sugerida o anular' : 'elegir la clase final o anular'}.
             </Text>
           )}
         </>
