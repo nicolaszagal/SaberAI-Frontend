@@ -1,4 +1,4 @@
-import { FOG_BASE_URL } from '../config';
+import { fogFetch } from './fogFetch';
 import type { VeredictoRegistrado } from '../../domain/entities/Action';
 import type { FencerColor } from '../../domain/entities/Fencer';
 import type {
@@ -57,8 +57,8 @@ export async function uploadClip(
   if (tLuzAMs !== null) body.append('t_luz_a_ms', String(tLuzAMs));
   if (tLuzBMs !== null) body.append('t_luz_b_ms', String(tLuzBMs));
 
-  const res = await fetch(
-    `${FOG_BASE_URL}/matches/${encodeURIComponent(matchId)}/clip`,
+  const res = await fogFetch(
+    `/matches/${encodeURIComponent(matchId)}/clip`,
     { method: 'POST', body, signal },
   );
   if (!res.ok) throw await errorDeRespuesta(res);
@@ -79,7 +79,7 @@ export interface VeredictoInput {
  *   Error: si el Fog rechaza el veredicto (404, 409, 422) o no hay conexión.
  */
 export async function postVeredicto(revisionId: string, input: VeredictoInput): Promise<VeredictoRegistrado> {
-  const res = await fetch(`${FOG_BASE_URL}/revisiones/${encodeURIComponent(revisionId)}/veredicto`, {
+  const res = await fogFetch(`/revisiones/${encodeURIComponent(revisionId)}/veredicto`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -114,7 +114,7 @@ interface CombateDto {
  *   Error: con cualquier otro fallo (sin conexión, 5xx): el combate no se descarta.
  */
 export async function getCombate(matchId: string): Promise<CombateActivo | null> {
-  const res = await fetch(`${FOG_BASE_URL}/matches/${encodeURIComponent(matchId)}`);
+  const res = await fogFetch(`/matches/${encodeURIComponent(matchId)}`);
   if (res.status === 404) return null;
   if (!res.ok) throw await errorDeRespuesta(res);
   const c = (await res.json()) as CombateDto;
@@ -125,14 +125,14 @@ export async function getCombate(matchId: string): Promise<CombateActivo | null>
 }
 
 async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${FOG_BASE_URL}${path}`);
+  const res = await fogFetch(path);
   if (!res.ok) throw new Error(`Fog ${res.status}: ${await res.text()}`);
   return res.json() as Promise<T>;
 }
 
 /** GET /health. Responde 503 con el mismo cuerpo si un componente falla; solo un fallo de red lanza error. */
 export async function getHealth(): Promise<HealthResponse> {
-  const res = await fetch(`${FOG_BASE_URL}/health`);
+  const res = await fogFetch(`/health`);
   return res.json() as Promise<HealthResponse>;
 }
 
@@ -231,7 +231,7 @@ export async function getRevision(id: string): Promise<RevisionDetalle> {
  *   Error: si el evento no existe (404) o el Fog no responde.
  */
 export async function getResumenValidacionTexto(eventoId: string): Promise<string> {
-  const res = await fetch(`${FOG_BASE_URL}/validaciones/${encodeURIComponent(eventoId)}/resumen`);
+  const res = await fogFetch(`/validaciones/${encodeURIComponent(eventoId)}/resumen`);
   if (!res.ok) throw await errorDeRespuesta(res);
   return res.text();
 }
@@ -266,7 +266,7 @@ export async function configureMatch(input: ConfigCombateInput): Promise<string>
     [`alias_${suf}`]: t.alias,
     [`weapon_side_${suf}`]: t.brazo,
   });
-  const res = await fetch(`${FOG_BASE_URL}/matches/config`, {
+  const res = await fogFetch(`/matches/config`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

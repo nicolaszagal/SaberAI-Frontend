@@ -47,7 +47,14 @@ export async function mockApi(page: Page, opts: {
   /** Cuerpo de GET /validaciones/{evento_id}/resumen (por defecto, sin revisiones). */
   resumen?: unknown;
   health?: 'ok' | 'degradado' | 'caido';
+  /** false = sin token guardado (la app abre en el login). Por defecto hay una sesión iniciada. */
+  sesion?: boolean;
 } = {}) {
+  // DEPLOY06: sesión iniciada de antemano para que las pruebas lleguen a las pantallas protegidas.
+  if (opts.sesion !== false) {
+    await page.addInitScript(() => sessionStorage.setItem('sabre.token', 'token-de-prueba'));
+  }
+  await page.route('**/auth/me', route => route.fulfill(json({ usuario: 'maestro' })));
   // GET /matches/{id}: valida el combate activo recordado (404 si no es el creado).
   await page.route(/\/matches\/[0-9a-f-]{36}$/, route =>
     route.request().url().endsWith(MATCH_ID)

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useC, useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import { useCombat } from '../context/CombatContext';
 import { useHealth, type Conexion } from '../hooks/useHealth';
 import { getModeloActivo } from '../../infrastructure/api/fogApi';
@@ -30,6 +31,7 @@ export function AppHeader({ screen, onNavigate }: Props) {
   const C = useC();
   const { theme, toggleTheme } = useTheme();
   const { combate, finalizarCombate } = useCombat();
+  const { cerrarSesion } = useAuth();
   const conexion = useHealth();
   const [modelo, setModelo] = useState<string | null>(null);
 
@@ -87,6 +89,9 @@ export function AppHeader({ screen, onNavigate }: Props) {
 
         <TouchableOpacity testID="theme-toggle" accessibilityRole="button" style={s.themeBtn} onPress={toggleTheme}>
           <Text style={s.themeLabel}>{theme === 'light' ? '☀ Tema claro' : '☾ Tema oscuro'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity testID="logout-btn" accessibilityRole="button" style={s.themeBtn} onPress={cerrarSesion}>
+          <Text style={s.themeLabel}>Cerrar sesión</Text>
         </TouchableOpacity>
       </View>
     </View>
