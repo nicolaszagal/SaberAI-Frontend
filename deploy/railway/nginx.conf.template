@@ -1,0 +1,78 @@
+# Contenedor único para Railway (DEPLOY06): sirve el build estático en "/" y
+# reenvía "/api/" al Fog (túnel https). Sin autenticación básica: el acceso lo
+# controla el login del Fog (JWT) y el X-Proxy-Token que este proxy agrega.
+# Las variables ${...} las sustituye la imagen nginx al arrancar (envsubst sobre
+# /etc/nginx/templates); $nginx_var queda intacto porque no está definida en el entorno.
+
+server_tokens off;
+
+# IP real del cliente según Railway (X-Real-IP, documentada). Se envía a Fog como único
+# valor de X-Forwarded-For, así un X-Forwarded-For enviado por el navegador no llega a Fog.
+# Sin X-Real-IP (ejecución local con docker run) se usa la IP del socket.
+map $http_x_real_ip $cliente_ip {
+    default $http_x_real_ip;
+    ""      $remote_addr;
+}
+
+server {
+    listen ${PORT};
+    listen [::]:${PORT};
+    server_name _;
+
+    # Igual al límite de subida de Fog (CLIP_MAX_MB, shared/config.py): un clip mayor recibe 413.
+    client_max_body_size ${CLIP_MAX_MB}m;
+
+    # Cabeceras de seguridad (a nivel de server: no usar add_header dentro de location,
+    # porque anularía las heredadas).
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    # Justificación de lo que el bundle de Expo necesita sobre la base pedida:
+    #  - media-src blob: el reproductor del clip usa URL.createObjectURL (blob:).
+    #  - style-src 'unsafe-inline': react-native-web inyecta <style> en tiempo de ejecución.
+    #  - script-src: no hace falta 'unsafe-inline' (el export carga un único .js externo).
+    add_header Content-Security-Policy "default-src 'self'; connect-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Permissions-Policy "camera=(), microphone=()" always;
+
+    # Mismo formato {"detail": ...} que Fog para que la interfaz muestre el motivo.
+    error_page 413 @clip_grande;
+    location @clip_grande {
+        default_type application/json;
+        return 413 '{"detail":"El clip supera el tamaño máximo permitido (${CLIP_MAX_MB} MB)."}';
+    }
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Healthcheck de Railway: propio del contenedor, no depende del Fog ni del túnel.
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 'ok';
+    }
+
+    location = /index.html {
+        expires -1;
+    }
+
+    # Los archivos de /_expo/ llevan hash en el nombre.
+    location /_expo/ {
+        expires 30d;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /api/ {
+        # La barra final en proxy_pass quita el prefijo /api.
+        proxy_pass ${FOG_UPSTREAM}/;
+        proxy_http_version 1.1;
+        proxy_ssl_server_name on;
+        proxy_set_header Host $proxy_host;
+        proxy_set_header X-Proxy-Token "${PROXY_SHARED_TOKEN}";
+        proxy_set_header X-Forwarded-For $cliente_ip;
+        proxy_read_timeout 120s;
+        proxy_send_timeout 120s;
+    }
+}

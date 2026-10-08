@@ -5,3 +5,4 @@ e2e/
 test-results/
 .git/
 .DS_Store
+dist-remoto/
