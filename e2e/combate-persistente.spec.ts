@@ -54,10 +54,10 @@ test('si no se puede verificar (sin conexión) conserva el match_id y permite re
 
 test('sin acceso a localStorage la app funciona (lecturas y escrituras en try/catch)', async ({ page }) => {
   await page.addInitScript(() => {
-    const falla = () => { throw new DOMException('bloqueado', 'SecurityError'); };
-    Storage.prototype.getItem = falla;
-    Storage.prototype.setItem = falla;
-    Storage.prototype.removeItem = falla;
+    // Solo localStorage: el token de sesión (DEPLOY06) vive en sessionStorage y debe seguir disponible.
+    Object.defineProperty(window, 'localStorage', {
+      get: () => { throw new DOMException('bloqueado', 'SecurityError'); },
+    });
   });
   await mockApi(page);
   await configurarCombate(page);

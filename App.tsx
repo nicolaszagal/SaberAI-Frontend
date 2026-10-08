@@ -6,6 +6,8 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 
 import { ThemeProvider, useC } from './src/presentation/context/ThemeContext';
 import { CombatProvider } from './src/presentation/context/CombatContext';
+import { AuthProvider, useAuth } from './src/presentation/context/AuthContext';
+import { LoginScreen } from './src/presentation/screens/LoginScreen';
 import { SessionProvider } from './src/presentation/context/SessionContext';
 import { AppHeader } from './src/presentation/components/AppHeader';
 import { LiveScreen } from './src/presentation/screens/LiveScreen';
@@ -85,15 +87,28 @@ function Inner() {
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
+/** Puerta de acceso: sin sesión validada no se monta ninguna pantalla protegida ni se llama al Fog. */
+function Gate() {
+  const C = useC();
+  const { estado } = useAuth();
+  if (estado === 'validando') return <View testID="validando-sesion" style={{ flex: 1, backgroundColor: C.bg }} />;
+  if (estado === 'sin_sesion') return <LoginScreen />;
+  return (
+    <CombatProvider>
+      <SessionProvider>
+        <Inner />
+      </SessionProvider>
+    </CombatProvider>
+  );
+}
+
 export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <CombatProvider>
-          <SessionProvider>
-            <Inner />
-          </SessionProvider>
-        </CombatProvider>
+        <AuthProvider>
+          <Gate />
+        </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

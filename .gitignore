@@ -42,3 +42,6 @@ yarn-error.*
 
 # Playwright
 test-results/
+
+# Build para la prueba remota (DEPLOY03)
+dist-remoto/
