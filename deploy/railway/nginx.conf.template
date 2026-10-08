@@ -65,8 +65,13 @@ server {
     }
 
     location /api/ {
-        # La barra final en proxy_pass quita el prefijo /api.
-        proxy_pass ${FOG_UPSTREAM}/;
+        # El nombre del túnel se resuelve en cada petición (resolver + variable), no al
+        # arrancar: el túnel cambia de URL y puede no existir, y el contenedor no debe
+        # caerse por eso. Con variable, proxy_pass no quita el prefijo: lo hace el rewrite.
+        resolver 1.1.1.1 8.8.8.8 valid=30s ipv6=off;
+        set $fog_upstream "${FOG_UPSTREAM}";
+        rewrite ^/api/(.*)$ /$1 break;
+        proxy_pass $fog_upstream;
         proxy_http_version 1.1;
         proxy_ssl_server_name on;
         proxy_set_header Host $proxy_host;
