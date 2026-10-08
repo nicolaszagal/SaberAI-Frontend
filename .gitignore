@@ -45,3 +45,8 @@ test-results/
 
 # Build para la prueba remota (DEPLOY03)
 dist-remoto/
+
+# DEPLOY07: variables locales fuera de git (la plantilla sí se versiona)
+.env
+.env.*
+!.env.example
