@@ -50,3 +50,7 @@ dist-remoto/
 .env
 .env.*
 !.env.example
+
+# Duplicados de Finder ("archivo 2.ext")
+* 2
+* 2.*
