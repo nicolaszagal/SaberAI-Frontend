@@ -1,6 +1,7 @@
 import { fogFetch } from './fogFetch';
 import type { VeredictoRegistrado } from '../../domain/entities/Action';
 import type { FencerColor } from '../../domain/entities/Fencer';
+import type { PoseTirador, VistaPose } from '../../domain/entities/Pose';
 import type {
   BrazoArmado, CombateActivo, ConfigCombateInput, Decision, EventoCatalogo, HealthResponse,
   ModeloActivo, RevisionDetalle, RevisionResumen, ResumenSesion, ResumenValidacion, TiradorConfig, UsuarioCatalogo,
@@ -19,15 +20,23 @@ export interface ClipUploadResponse {
   confidence?: number | null;
 }
 
+/** Error de una respuesta no exitosa del Fog, con su código HTTP para distinguir 404, 409, etc. */
+export class FogError extends Error {
+  constructor(message: string, readonly status: number, readonly detalle: string) {
+    super(message);
+    this.name = 'FogError';
+  }
+}
+
 /** Mensaje de error de una respuesta no exitosa: `detail` del Fog si viene, si no el texto crudo. */
-async function errorDeRespuesta(res: Response): Promise<Error> {
+async function errorDeRespuesta(res: Response): Promise<FogError> {
   const texto = await res.text();
   let detalle = texto;
   try {
     const d = (JSON.parse(texto) as { detail?: unknown }).detail;
     if (typeof d === 'string') detalle = d;
   } catch { /* cuerpo no JSON: se usa el texto tal cual */ }
-  return new Error(`Fog ${res.status}: ${detalle}`);
+  return new FogError(`Fog ${res.status}: ${detalle}`, res.status, detalle);
 }
 
 /**
@@ -280,4 +289,55 @@ export async function configureMatch(input: ConfigCombateInput): Promise<string>
   if (!res.ok) throw new Error(`Fog ${res.status}: ${await res.text()}`);
   const body = (await res.json()) as { match_id: string };
   return body.match_id;
+}
+
+interface PoseTiradorDto {
+  color: 'ROJ' | 'VER';
+  brazo: 'diestro' | 'zurdo';
+  xy: number[][][];
+  conf: number[][];
+  detectado: boolean[];
+  angulo_codo: (number | null)[];
+}
+
+interface PoseDto {
+  revision_id: string;
+  fps: number;
+  frame_w: number;
+  frame_h: number;
+  frame_inicio: number;
+  frame_tocado: number;
+  n_frames: number;
+  conf_min_keypoint: number;
+  tiradores: { A: PoseTiradorDto; B: PoseTiradorDto } | null;
+  motivo: string | null;
+}
+
+const aPoseTirador = (t: PoseTiradorDto): PoseTirador => ({
+  color: t.color, brazo: t.brazo, xy: t.xy, conf: t.conf, detectado: t.detectado, anguloCodo: t.angulo_codo,
+});
+
+/**
+ * GET /revisiones/{revision_id}/pose (F-031, CU-08): keypoints de A y B para los trazos del modal.
+ *
+ * Args:
+ *   revisionId: id de la revisión.
+ *
+ * Returns:
+ *   La pose. Con `nFrames` 0 (timeout o pose incompleta) no hay `tiradores` y `motivo` lo explica.
+ *
+ * Raises:
+ *   FogError: 404 si no existe, 409 si no hay clasificación o los keypoints fallan la verificación.
+ *   TypeError: si no hay conexión.
+ */
+export async function obtenerPose(revisionId: string): Promise<VistaPose> {
+  const res = await fogFetch(`/revisiones/${encodeURIComponent(revisionId)}/pose`);
+  if (!res.ok) throw await errorDeRespuesta(res);
+  const d = (await res.json()) as PoseDto;
+  return {
+    revisionId: d.revision_id, fps: d.fps, frameW: d.frame_w, frameH: d.frame_h,
+    frameInicio: d.frame_inicio, frameTocado: d.frame_tocado, nFrames: d.n_frames,
+    confMinKeypoint: d.conf_min_keypoint, motivo: d.motivo,
+    tiradores: d.tiradores && { A: aPoseTirador(d.tiradores.A), B: aPoseTirador(d.tiradores.B) },
+  };
 }

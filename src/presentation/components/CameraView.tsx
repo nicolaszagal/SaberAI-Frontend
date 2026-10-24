@@ -2,18 +2,16 @@
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Defs, Pattern, Rect, Line } from 'react-native-svg';
 import { useC } from '../context/ThemeContext';
-import { StickFigurePose } from './StickFigurePose';
 
 interface Props {
   label: string;
   sublabel: string;
   fps: number;
   latencyMs?: number;
-  showPose?: boolean;
   compact?: boolean;
 }
 
-export function CameraView({ label, sublabel, fps, latencyMs, showPose, compact }: Props) {
+export function CameraView({ label, sublabel, fps, latencyMs, compact }: Props) {
   const C = useC();
   const s = useMemo(() => styles(C), [C]);
 
@@ -38,23 +36,17 @@ export function CameraView({ label, sublabel, fps, latencyMs, showPose, compact 
       </View>
 
       <View style={s.video}>
-        {showPose ? (
-          <StickFigurePose />
-        ) : (
-          <>
-            <Svg style={StyleSheet.absoluteFill}>
-              <Defs>
-                <Pattern id={`cv_${label}`} x="0" y="0" width="14" height="14"
-                  patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-                  <Line x1="0" y1="0" x2="0" y2="14" stroke="#1a1a1a" strokeWidth="0.8" />
-                </Pattern>
-              </Defs>
-              <Rect width="100%" height="100%" fill="#0c0c0c" />
-              <Rect width="100%" height="100%" fill={`url(#cv_${label})`} />
-            </Svg>
-            {compact && <Text style={s.noSignal}>SIN SEÑAL</Text>}
-          </>
-        )}
+        <Svg style={StyleSheet.absoluteFill}>
+          <Defs>
+            <Pattern id={`cv_${label}`} x="0" y="0" width="14" height="14"
+              patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <Line x1="0" y1="0" x2="0" y2="14" stroke="#1a1a1a" strokeWidth="0.8" />
+            </Pattern>
+          </Defs>
+          <Rect width="100%" height="100%" fill="#0c0c0c" />
+          <Rect width="100%" height="100%" fill={`url(#cv_${label})`} />
+        </Svg>
+        {compact && <Text style={s.noSignal}>SIN SEÑAL</Text>}
       </View>
 
       {!compact && (

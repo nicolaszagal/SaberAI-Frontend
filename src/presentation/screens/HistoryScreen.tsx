@@ -10,6 +10,8 @@ import { useC } from '../context/ThemeContext';
 import { useCombat } from '../context/CombatContext';
 import { Button } from '../components/Button';
 import { StateMessage } from '../components/StateMessage';
+import { ModalTrazos } from '../components/ModalTrazos';
+import { useShortcut } from '../hooks/useShortcut';
 import { getResumenSesion, getRevision, getRevisiones, getResumenValidacionTexto } from '../../infrastructure/api/fogApi';
 import { descargarTexto, puedeDescargar } from '../../infrastructure/descarga';
 import {
@@ -74,6 +76,11 @@ export function HistoryScreen({ onNavigate }: Props) {
   const [exportando, setExportando] = useState(false);
   const [exportado, setExportado] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [trazosAbierto, setTrazosAbierto] = useState(false);
+  // Los trazos se piden para la revisión con detalle abierto; al cambiarla el modal se cierra.
+  const trazosId = detalle && detalle.id === seleccionada ? detalle.id : null;
+  useEffect(() => { setTrazosAbierto(false); }, [seleccionada]);
+  useShortcut({ tecla: 't', activo: trazosId !== null && !trazosAbierto }, () => setTrazosAbierto(true));
 
   const cargar = useCallback(() => {
     if (!eventoId) return undefined;
@@ -158,6 +165,7 @@ export function HistoryScreen({ onNavigate }: Props) {
 
   return (
     <ScrollView style={s.root} contentContainerStyle={s.content}>
+      <ModalTrazos visible={trazosAbierto} revisionId={trazosId} onClose={() => setTrazosAbierto(false)} />
       <View style={s.head}>
         <Text style={s.title}>Revisiones del evento{revisiones ? ` · ${revisiones.length}` : ''}</Text>
         {puedeDescargar && (
@@ -229,7 +237,7 @@ export function HistoryScreen({ onNavigate }: Props) {
               <Cell s={s} label="Concordancia" valor={textoConcordancia(r)} small />
             </TouchableOpacity>
             {abierta && (
-              <Detalle s={s} detalle={detalle} error={detalleError} onReintentar={() => cargarDetalle(r.id)} />
+              <Detalle s={s} detalle={detalle} error={detalleError} onReintentar={() => cargarDetalle(r.id)} onVerTrazos={() => setTrazosAbierto(true)} />
             )}
           </View>
         );
@@ -249,8 +257,8 @@ function Cell({ s, label, valor, small }: { s: Estilos; label: string; valor: st
   );
 }
 
-function Detalle({ s, detalle, error, onReintentar }: {
-  s: Estilos; detalle: RevisionDetalle | null; error: string | null; onReintentar: () => void;
+function Detalle({ s, detalle, error, onReintentar, onVerTrazos }: {
+  s: Estilos; detalle: RevisionDetalle | null; error: string | null; onReintentar: () => void; onVerTrazos: () => void;
 }) {
   if (error) {
     return (
@@ -297,6 +305,10 @@ function Detalle({ s, detalle, error, onReintentar }: {
       <Text style={s.detalleValor}>{textoDecision(detalle.decision, detalle.claseFinal)}</Text>
       {detalle.registradoEn && <Text style={s.detalleMeta}>Registrada: {formatFecha(detalle.registradoEn)}</Text>}
 
+      <View style={s.accionDetalle}>
+        <Button testID="ver-trazos-btn" label="Ver trazos" shortcut="T" onPress={onVerTrazos} />
+      </View>
+
       {detalle.auditoriaHash && (
         <>
           <Text style={s.detalleTitulo}>Auditoría</Text>
@@ -334,6 +346,7 @@ const styles = (C: ReturnType<typeof useC>) => StyleSheet.create({
   detalleTitulo: { color: C.textMuted, fontSize: FONT.xs, fontWeight: '700', marginTop: space(1) },
   detalleValor:  { color: C.text, fontSize: FONT.md, fontWeight: '600' },
   detalleMeta:   { color: C.textMuted, fontSize: FONT.sm },
+  accionDetalle: { flexDirection: 'row', marginTop: space(1) },
   probs:         { flexDirection: 'row', flexWrap: 'wrap', gap: space(3) },
   prob:          { color: C.text, fontSize: FONT.sm },
   hash:          { color: C.textMuted, fontSize: FONT.xs, fontFamily: 'monospace' },
