@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { expect, type Page } from '@playwright/test';
 
 export const EVENTO_ID = '11111111-1111-4111-8111-111111111111';
@@ -106,4 +108,37 @@ export async function analizarClip(page: Page, fixture = 'e2e/fixtures/dummy.mp4
   await page.getByTestId('file-input').setInputFiles(fixture);
   await page.getByTestId('marcar-luz-a-btn').click();
   await page.getByTestId('analizar-btn').click();
+}
+
+/** Respuesta de GET /revisiones/{id}/pose generada por el código real del Fog (`fixtures/generar_pose.py`). */
+export type PoseFixture = {
+  revision_id: string; fps: number; frame_w: number; frame_h: number; frame_inicio: number;
+  frame_tocado: number; n_frames: number; conf_min_keypoint: number; motivo: string | null;
+  tiradores: null | Record<'A' | 'B', {
+    color: string; brazo: string; xy: number[][][]; conf: number[][];
+    detectado: boolean[]; angulo_codo: (number | null)[];
+  }>;
+};
+
+/** Lee un fixture de pose de `e2e/fixtures/`. */
+export function leerPose(nombre: 'pose_real' | 'pose_frame_inicio' | 'pose_sin_trazos'): PoseFixture {
+  return JSON.parse(readFileSync(join(__dirname, 'fixtures', `${nombre}.json`), 'utf-8')) as PoseFixture;
+}
+
+/**
+ * Intercepta GET /revisiones/{id}/pose. Devuelve el contador de peticiones recibidas.
+ *
+ * Args:
+ *   respuestas: cuerpo (y estado) de cada petición, en orden; la última se repite.
+ */
+export async function mockPose(
+  page: Page, ...respuestas: { body: unknown; status?: number }[]
+): Promise<{ peticiones: () => number }> {
+  let n = 0;
+  await page.route('**/revisiones/*/pose', route => {
+    const r = respuestas[Math.min(n, respuestas.length - 1)];
+    n += 1;
+    return route.fulfill(json(r.body, r.status ?? 200));
+  });
+  return { peticiones: () => n };
 }

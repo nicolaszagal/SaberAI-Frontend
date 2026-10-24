@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { DARK_THEME, LIGHT_THEME, type ThemeColors } from '../src/presentation/theme/colors';
+import { FONDO_TRAZOS, colorTrazo } from '../src/presentation/theme/fencer';
 
 /** Luminancia relativa WCAG 2.x de un color #rrggbb. */
 function luminancia(hex: string): number {
@@ -46,3 +47,22 @@ for (const [nombre, C] of [['claro', LIGHT_THEME], ['oscuro', DARK_THEME]] as co
     }
   });
 }
+
+// F-031: el modal de trazos dibuja sobre negro puro con cualquier tema, así que sus etiquetas y
+// ángulos usan los colores del tema oscuro (`colorTrazo`) y el texto de apoyo, no los del tema activo.
+test.describe('contraste AA · etiquetas del modal de trazos sobre fondo negro', () => {
+  test('el lienzo es negro puro', () => {
+    expect(FONDO_TRAZOS).toBe('#000000');
+  });
+  for (const [nombre, color] of [
+    ['A · ROJ', colorTrazo('ROJ')], ['B · VER', colorTrazo('VER')],
+    ['texto', DARK_THEME.text], ['texto atenuado', DARK_THEME.textMuted],
+  ] as const) {
+    test(`${nombre} sobre el lienzo`, () => {
+      expect(contraste(color, FONDO_TRAZOS)).toBeGreaterThanOrEqual(AA_TEXTO_NORMAL);
+    });
+  }
+  test('el rojo y el verde del tema claro no bastarían sobre negro (por eso se usa el oscuro)', () => {
+    expect(contraste(LIGHT_THEME.red, FONDO_TRAZOS)).toBeLessThan(AA_TEXTO_NORMAL);
+  });
+});
