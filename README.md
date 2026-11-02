@@ -11,15 +11,16 @@ npx tsc --noEmit         # tipos
 npx playwright test      # pruebas E2E
 ```
 
-## Pruebas E2E: puerto configurable (`E2E_PORT`)
+## Pruebas E2E: nunca contra el despliegue
 
-`playwright.config.ts` levanta la app con `expo start --web` y usa ese mismo puerto como `baseURL`. Por defecto es `8081`; se cambia con la variable de entorno `E2E_PORT`:
+`playwright.config.ts` levanta el Expo local con `expo start --web` en el puerto **8099** (no en el 8081, que el túnel SSH al despliegue suele ocupar) y lo usa como `baseURL`. Se cambia con `E2E_PORT`:
 
 ```bash
 E2E_PORT=8091 npx playwright test
 ```
 
-Conviene fijarla cuando el 8081 está ocupado. Como el servidor se reutiliza si ya responde (`reuseExistingServer`), un contenedor o proceso ajeno en ese puerto hace que las pruebas corran contra otra versión de la app.
+- Si el puerto ya está ocupado, la corrida **falla** en vez de probar contra lo que haya escuchando. Solo con `E2E_REUSE=1` se reutiliza un Expo local ya levantado (`E2E_REUSE=1 npx playwright test`).
+- `e2e/globalSetup.ts` aborta si la página servida no es el Expo local (responde el nginx del contenedor o una exportación estática en lugar del servidor de desarrollo). Su lógica está en `e2e/servidorLocal.ts` y se prueba en `e2e/servidor-local.spec.ts`.
 
 ## Sistema visual
 
