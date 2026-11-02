@@ -142,3 +142,40 @@ export async function mockPose(
   });
   return { peticiones: () => n };
 }
+
+/** Estados del razonamiento que tienen fixture (`fixtures/razonamiento_<estado>.json`). */
+export type EstadoFixtureRazonamiento =
+  | 'respaldada' | 'discordante' | 'no_concluyente' | 'insuficiente' | 'censurado'
+  | 'no_registrado' | 'no_calculado' | 'no_disponible';
+
+/** Respuesta de GET /revisiones/{id}/razonamiento generada por el código real del Fog (`fixtures/generar_razonamiento.py`). */
+export interface RazonamientoFixture {
+  revision_id: string; estado: string; frases?: string[];
+  criterio_fie?: { articulo: string; clase: string }; confianza?: number;
+  ventana_atencion?: { desde_ms: number; hasta_ms: number }; frame_clave?: number;
+  eventos?: { tipo: string; tirador?: string; frame_idx: number; t_ms: number; censurado_inicio?: boolean }[];
+  params_version?: string; motivo?: string;
+}
+
+/** Lee un fixture de razonamiento de `e2e/fixtures/`. */
+export function leerRazonamiento(estado: EstadoFixtureRazonamiento): RazonamientoFixture {
+  return JSON.parse(readFileSync(join(__dirname, 'fixtures', `razonamiento_${estado}.json`), 'utf-8')) as RazonamientoFixture;
+}
+
+/**
+ * Intercepta GET /revisiones/{id}/razonamiento. Devuelve el contador de peticiones recibidas.
+ *
+ * Args:
+ *   respuestas: cuerpo (y estado) de cada petición, en orden; la última se repite.
+ */
+export async function mockRazonamiento(
+  page: Page, ...respuestas: { body: unknown; status?: number }[]
+): Promise<{ peticiones: () => number }> {
+  let n = 0;
+  await page.route('**/revisiones/*/razonamiento', route => {
+    const r = respuestas[Math.min(n, respuestas.length - 1)];
+    n += 1;
+    return route.fulfill(json(r.body, r.status ?? 200));
+  });
+  return { peticiones: () => n };
+}

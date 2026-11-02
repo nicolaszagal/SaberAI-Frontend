@@ -196,7 +196,7 @@ test.describe('estados', () => {
   });
 
   test('409 por revisión sin clasificación muestra su mensaje', async ({ page }) => {
-    await mockPose(page, { status: 409, body: { detail: 'la revisión aún no tiene una clasificación registrada' } });
+    await mockPose(page, { status: 409, body: { detail: 'la revisión aún no tiene una clasificación registrada', codigo: 'sin_clasificacion' } });
     await conRevision(page);
     await abrir(page);
     await expect(page.getByTestId('trazos-409')).toContainText('aún no tiene una clasificación registrada');
@@ -204,11 +204,25 @@ test.describe('estados', () => {
   });
 
   test('409 por keypoints alterados muestra el mensaje de integridad', async ({ page }) => {
-    await mockPose(page, { status: 409, body: { detail: 'keypoints alterados' } });
+    await mockPose(page, { status: 409, body: { detail: 'keypoints alterados', codigo: 'keypoints_alterados' } });
     await conRevision(page);
     await abrir(page);
     await expect(page.getByTestId('trazos-409')).toContainText('no pasan la verificación de integridad');
     await expect(page.getByTestId('trazos-lienzo')).toHaveCount(0);
+  });
+
+  test('el 409 se distingue por `codigo`, no por el texto de `detail`', async ({ page }) => {
+    await mockPose(page, { status: 409, body: { detail: 'texto cualquiera', codigo: 'sin_clasificacion' } });
+    await conRevision(page);
+    await abrir(page);
+    await expect(page.getByTestId('trazos-409')).toContainText('aún no tiene una clasificación registrada');
+  });
+
+  test('un 409 con `detail` de integridad pero `codigo` sin_clasificacion no muestra el mensaje de integridad', async ({ page }) => {
+    await mockPose(page, { status: 409, body: { detail: 'keypoints alterados', codigo: 'sin_clasificacion' } });
+    await conRevision(page);
+    await abrir(page);
+    await expect(page.getByTestId('trazos-409')).not.toContainText('integridad');
   });
 
   test('un error del Fog se puede reintentar', async ({ page }) => {

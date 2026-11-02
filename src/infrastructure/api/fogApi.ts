@@ -2,6 +2,7 @@ import { fogFetch } from './fogFetch';
 import type { VeredictoRegistrado } from '../../domain/entities/Action';
 import type { FencerColor } from '../../domain/entities/Fencer';
 import type { PoseTirador, VistaPose } from '../../domain/entities/Pose';
+import type { EstadoRazonamiento, VistaRazonamiento } from '../../domain/entities/Razonamiento';
 import type {
   BrazoArmado, CombateActivo, ConfigCombateInput, Decision, EventoCatalogo, HealthResponse,
   ModeloActivo, RevisionDetalle, RevisionResumen, ResumenSesion, ResumenValidacion, TiradorConfig, UsuarioCatalogo,
@@ -20,9 +21,13 @@ export interface ClipUploadResponse {
   confidence?: number | null;
 }
 
-/** Error de una respuesta no exitosa del Fog, con su código HTTP para distinguir 404, 409, etc. */
+/**
+ * Error de una respuesta no exitosa del Fog, con su código HTTP para distinguir 404, 409, etc.
+ * `codigo` es el identificador estable de los 409 (`sin_clasificacion`, `keypoints_alterados`): se
+ * distinguen por él y no por el texto de `detalle`, que puede cambiar.
+ */
 export class FogError extends Error {
-  constructor(message: string, readonly status: number, readonly detalle: string) {
+  constructor(message: string, readonly status: number, readonly detalle: string, readonly codigo: string | null = null) {
     super(message);
     this.name = 'FogError';
   }
@@ -32,11 +37,13 @@ export class FogError extends Error {
 async function errorDeRespuesta(res: Response): Promise<FogError> {
   const texto = await res.text();
   let detalle = texto;
+  let codigo: string | null = null;
   try {
-    const d = (JSON.parse(texto) as { detail?: unknown }).detail;
-    if (typeof d === 'string') detalle = d;
+    const cuerpo = JSON.parse(texto) as { detail?: unknown; codigo?: unknown };
+    if (typeof cuerpo.detail === 'string') detalle = cuerpo.detail;
+    if (typeof cuerpo.codigo === 'string') codigo = cuerpo.codigo;
   } catch { /* cuerpo no JSON: se usa el texto tal cual */ }
-  return new FogError(`Fog ${res.status}: ${detalle}`, res.status, detalle);
+  return new FogError(`Fog ${res.status}: ${detalle}`, res.status, detalle, codigo);
 }
 
 /**
@@ -339,5 +346,61 @@ export async function obtenerPose(revisionId: string): Promise<VistaPose> {
     frameInicio: d.frame_inicio, frameTocado: d.frame_tocado, nFrames: d.n_frames,
     confMinKeypoint: d.conf_min_keypoint, motivo: d.motivo,
     tiradores: d.tiradores && { A: aPoseTirador(d.tiradores.A), B: aPoseTirador(d.tiradores.B) },
+  };
+}
+
+interface EventoRazonamientoDto {
+  tipo: 'inicio_extension_brazo' | 'inicio_desplazamiento' | 'tocado';
+  tirador?: 'A' | 'B';
+  frame_idx: number;
+  t_ms: number;
+  censurado_inicio?: boolean;
+}
+
+interface RazonamientoDto {
+  revision_id: string;
+  estado: EstadoRazonamiento;
+  frases?: string[];
+  criterio_fie?: { articulo: string; clase: string };
+  confianza?: number;
+  ventana_atencion?: { desde_ms: number; hasta_ms: number };
+  frame_clave?: number;
+  eventos?: EventoRazonamientoDto[];
+  params_version?: string;
+  motivo?: string;
+}
+
+/**
+ * GET /revisiones/{revision_id}/razonamiento (F-035, CU-09): las frases que explican la sugerencia,
+ * guardadas por Fog al clasificar. El Fog omite los campos null; aquí quedan como null.
+ *
+ * Args:
+ *   revisionId: id de la revisión.
+ *
+ * Returns:
+ *   El razonamiento, con `estado` `no_registrado`, `no_calculado` o `no_disponible` cuando no hay.
+ *
+ * Raises:
+ *   FogError: 404 si no existe, 409 con `codigo` `sin_clasificacion` si no hay clasificación.
+ *   TypeError: si no hay conexión.
+ */
+export async function obtenerRazonamiento(revisionId: string): Promise<VistaRazonamiento> {
+  const res = await fogFetch(`/revisiones/${encodeURIComponent(revisionId)}/razonamiento`);
+  if (!res.ok) throw await errorDeRespuesta(res);
+  const d = (await res.json()) as RazonamientoDto;
+  return {
+    revisionId: d.revision_id,
+    estado: d.estado,
+    frases: d.frases ?? [],
+    criterio: d.criterio_fie ?? null,
+    confianza: d.confianza ?? null,
+    ventanaAtencion: d.ventana_atencion ? { desdeMs: d.ventana_atencion.desde_ms, hastaMs: d.ventana_atencion.hasta_ms } : null,
+    frameClave: d.frame_clave ?? null,
+    eventos: (d.eventos ?? []).map(e => ({
+      tipo: e.tipo, tirador: e.tirador ?? null, frameIdx: e.frame_idx, tMs: e.t_ms,
+      censuradoInicio: e.censurado_inicio ?? false,
+    })),
+    paramsVersion: d.params_version ?? null,
+    motivo: d.motivo ?? null,
   };
 }
