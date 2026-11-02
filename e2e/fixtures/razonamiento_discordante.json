@@ -1,0 +1,46 @@
+{
+ "revision_id": "44444444-4444-4444-8444-444444444444",
+ "estado": "discordante",
+ "frases": [
+  "La pose muestra que ROJ extendió el brazo primero, lo que no respalda la sugerencia.",
+  "Revise el video antes de decidir."
+ ],
+ "criterio_fie": {
+  "articulo": "t.101.2-4",
+  "clase": "AttackB"
+ },
+ "confianza": 0.81,
+ "ventana_atencion": {
+  "desde_ms": -300,
+  "hasta_ms": -167
+ },
+ "frame_clave": 11,
+ "eventos": [
+  {
+   "tipo": "tocado",
+   "frame_idx": 20,
+   "t_ms": 0
+  },
+  {
+   "tipo": "inicio_extension_brazo",
+   "tirador": "A",
+   "frame_idx": 7,
+   "t_ms": -433,
+   "censurado_inicio": false
+  },
+  {
+   "tipo": "inicio_extension_brazo",
+   "tirador": "B",
+   "frame_idx": 11,
+   "t_ms": -300,
+   "censurado_inicio": false
+  },
+  {
+   "tipo": "inicio_desplazamiento",
+   "frame_idx": 6,
+   "t_ms": -467,
+   "censurado_inicio": false
+  }
+ ],
+ "params_version": "1"
+}

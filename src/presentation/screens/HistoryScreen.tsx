@@ -10,8 +10,8 @@ import { useC } from '../context/ThemeContext';
 import { useCombat } from '../context/CombatContext';
 import { Button } from '../components/Button';
 import { StateMessage } from '../components/StateMessage';
-import { ModalTrazos } from '../components/ModalTrazos';
-import { useShortcut } from '../hooks/useShortcut';
+import { BotonesInterpretacion, ModalesInterpretacion } from '../components/InterpretacionRevision';
+import { useInterpretacion, type Interpretacion } from '../hooks/useInterpretacion';
 import { getResumenSesion, getRevision, getRevisiones, getResumenValidacionTexto } from '../../infrastructure/api/fogApi';
 import { descargarTexto, puedeDescargar } from '../../infrastructure/descarga';
 import {
@@ -76,11 +76,8 @@ export function HistoryScreen({ onNavigate }: Props) {
   const [exportando, setExportando] = useState(false);
   const [exportado, setExportado] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
-  const [trazosAbierto, setTrazosAbierto] = useState(false);
-  // Los trazos se piden para la revisión con detalle abierto; al cambiarla el modal se cierra.
-  const trazosId = detalle && detalle.id === seleccionada ? detalle.id : null;
-  useEffect(() => { setTrazosAbierto(false); }, [seleccionada]);
-  useShortcut({ tecla: 't', activo: trazosId !== null && !trazosAbierto }, () => setTrazosAbierto(true));
+  // Trazos (T) y razonamiento (J) se piden para la revisión con detalle abierto; al cambiarla los modales se cierran.
+  const interpretacion = useInterpretacion(detalle && detalle.id === seleccionada ? detalle.id : null);
 
   const cargar = useCallback(() => {
     if (!eventoId) return undefined;
@@ -165,7 +162,7 @@ export function HistoryScreen({ onNavigate }: Props) {
 
   return (
     <ScrollView style={s.root} contentContainerStyle={s.content}>
-      <ModalTrazos visible={trazosAbierto} revisionId={trazosId} onClose={() => setTrazosAbierto(false)} />
+      <ModalesInterpretacion ctl={interpretacion} />
       <View style={s.head}>
         <Text style={s.title}>Revisiones del evento{revisiones ? ` · ${revisiones.length}` : ''}</Text>
         {puedeDescargar && (
@@ -237,7 +234,7 @@ export function HistoryScreen({ onNavigate }: Props) {
               <Cell s={s} label="Concordancia" valor={textoConcordancia(r)} small />
             </TouchableOpacity>
             {abierta && (
-              <Detalle s={s} detalle={detalle} error={detalleError} onReintentar={() => cargarDetalle(r.id)} onVerTrazos={() => setTrazosAbierto(true)} />
+              <Detalle s={s} detalle={detalle} error={detalleError} onReintentar={() => cargarDetalle(r.id)} interpretacion={interpretacion} />
             )}
           </View>
         );
@@ -257,8 +254,8 @@ function Cell({ s, label, valor, small }: { s: Estilos; label: string; valor: st
   );
 }
 
-function Detalle({ s, detalle, error, onReintentar, onVerTrazos }: {
-  s: Estilos; detalle: RevisionDetalle | null; error: string | null; onReintentar: () => void; onVerTrazos: () => void;
+function Detalle({ s, detalle, error, onReintentar, interpretacion }: {
+  s: Estilos; detalle: RevisionDetalle | null; error: string | null; onReintentar: () => void; interpretacion: Interpretacion;
 }) {
   if (error) {
     return (
@@ -306,7 +303,7 @@ function Detalle({ s, detalle, error, onReintentar, onVerTrazos }: {
       {detalle.registradoEn && <Text style={s.detalleMeta}>Registrada: {formatFecha(detalle.registradoEn)}</Text>}
 
       <View style={s.accionDetalle}>
-        <Button testID="ver-trazos-btn" label="Ver trazos" shortcut="T" onPress={onVerTrazos} />
+        <BotonesInterpretacion ctl={interpretacion} />
       </View>
 
       {detalle.auditoriaHash && (

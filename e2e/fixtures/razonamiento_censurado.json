@@ -1,0 +1,46 @@
+{
+ "revision_id": "44444444-4444-4444-8444-444444444444",
+ "estado": "respaldada",
+ "frases": [
+  "ROJ ya tenía el brazo extendido al comienzo del clip, antes que VER.",
+  "Criterio FIE t.101.2-4: la extensión del brazo precede al ataque."
+ ],
+ "criterio_fie": {
+  "articulo": "t.101.2-4",
+  "clase": "AttackA"
+ },
+ "confianza": 0.77,
+ "ventana_atencion": {
+  "desde_ms": -367,
+  "hasta_ms": -233
+ },
+ "frame_clave": 9,
+ "eventos": [
+  {
+   "tipo": "tocado",
+   "frame_idx": 20,
+   "t_ms": 0
+  },
+  {
+   "tipo": "inicio_extension_brazo",
+   "tirador": "A",
+   "frame_idx": 0,
+   "t_ms": -667,
+   "censurado_inicio": true
+  },
+  {
+   "tipo": "inicio_extension_brazo",
+   "tirador": "B",
+   "frame_idx": 9,
+   "t_ms": -367,
+   "censurado_inicio": false
+  },
+  {
+   "tipo": "inicio_desplazamiento",
+   "frame_idx": 0,
+   "t_ms": -667,
+   "censurado_inicio": true
+  }
+ ],
+ "params_version": "1"
+}

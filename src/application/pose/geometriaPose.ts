@@ -156,6 +156,16 @@ export function tiempoRelativo(frame: number, tocado: number, fps: number): stri
   return `${s < 0 ? '-' : '+'}${texto} s`;
 }
 
+/**
+ * Tiempo en milisegundos respecto al tocado, con el mismo formato que `tiempoRelativo`.
+ *
+ * Args:
+ *   ms: milisegundos respecto al tocado (negativo = antes).
+ */
+export function tiempoDesdeMs(ms: number): string {
+  return tiempoRelativo(ms, 0, 1000);
+}
+
 /** Posición de un tirador para escribir su etiqueta: sobre el punto visible más alto. */
 export function anclaEtiqueta(puntos: (Punto | null)[]): Punto | null {
   const visibles = puntos.filter((p): p is Punto => p !== null);

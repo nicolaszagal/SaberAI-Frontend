@@ -14,7 +14,8 @@ import { useShortcut } from '../hooks/useShortcut';
 import { useTranscurrido } from '../hooks/useTranscurrido';
 import { FENCER_LABEL, fencerColor } from '../theme/fencer';
 import { FONT, RADIUS, space } from '../theme/tokens';
-import { ModalTrazos } from './ModalTrazos';
+import { BotonesInterpretacion, ModalesInterpretacion } from './InterpretacionRevision';
+import { useInterpretacion } from '../hooks/useInterpretacion';
 import { LIMITE_ANALISIS_MS } from '../../application/AnalyzeClipUseCase';
 import {
   CLASES_MODELO, etiquetaDecision, motivoLegible, nombreAccion, tiradorDeClase,
@@ -139,10 +140,8 @@ export function PasoSugerencia() {
   const sug = revision?.sugerencia ?? null;
   const analizando = sessionStatus === 'analyzing';
   const revisionId = sessionStatus === 'done' ? revision?.revisionId ?? null : null;
-  const [trazosAbierto, setTrazosAbierto] = useState(false);
-  // Al cambiar de revisión (o reiniciarla) el modal no sigue abierto sobre otra.
-  useEffect(() => { setTrazosAbierto(false); }, [revisionId]);
-  useShortcut({ tecla: 't', activo: revisionId !== null && !trazosAbierto }, () => setTrazosAbierto(true));
+  // Trazos (T) y razonamiento (J): al cambiar de revisión los modales se cierran.
+  const interpretacion = useInterpretacion(revisionId);
 
   return (
     <Paso numero={2} titulo="Sugerencia" testID="paso-sugerencia">
@@ -174,11 +173,8 @@ export function PasoSugerencia() {
           Sin sugerencia todavía. Completa el Paso 1 y pulsa ANALIZAR.
         </Text>
       )}
-      <Button
-        testID="ver-trazos-btn" label="Ver trazos" shortcut="T"
-        onPress={() => setTrazosAbierto(true)} disabled={revisionId === null}
-      />
-      <ModalTrazos visible={trazosAbierto} revisionId={revisionId} onClose={() => setTrazosAbierto(false)} />
+      <BotonesInterpretacion ctl={interpretacion} />
+      <ModalesInterpretacion ctl={interpretacion} />
     </Paso>
   );
 }
