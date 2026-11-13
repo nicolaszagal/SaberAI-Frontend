@@ -9,6 +9,10 @@ set -eu
 # Sin el token nginx enviaría X-Proxy-Token vacío y Fog respondería 403 a todo: se niega a arrancar.
 [ -n "${PROXY_SHARED_TOKEN:-}" ] || { echo "Falta PROXY_SHARED_TOKEN (el mismo valor que en Fog)." >&2; exit 1; }
 SOCK=/tmp/tailscaled.sock
+# Con el MTU por defecto (1280) los paquetes completos Mac -> Railway no llegan (medido el 13/11/2026:
+# respuestas de hasta 1000 bytes pasan, de 1300 en adelante se pierden y el handshake TLS expira).
+# Un MTU menor hace que el contenedor anuncie un MSS menor. Medido: con 1100 llegan 3000 bytes.
+export TS_DEBUG_MTU="${TS_DEBUG_MTU:-1100}"
 
 tailscaled --tun=userspace-networking --statedir=/tmp/ts --socket="$SOCK" >/tmp/tailscaled.log 2>&1 &
 n=0
