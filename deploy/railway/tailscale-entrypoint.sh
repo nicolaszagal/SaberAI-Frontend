@@ -6,6 +6,8 @@
 set -eu
 
 [ -n "${TS_AUTHKEY:-}" ] || { echo "Falta TS_AUTHKEY (clave de Tailscale con tag:frontend)." >&2; exit 1; }
+# Sin el token nginx enviaría X-Proxy-Token vacío y Fog respondería 403 a todo: se niega a arrancar.
+[ -n "${PROXY_SHARED_TOKEN:-}" ] || { echo "Falta PROXY_SHARED_TOKEN (el mismo valor que en Fog)." >&2; exit 1; }
 SOCK=/tmp/tailscaled.sock
 
 tailscaled --tun=userspace-networking --statedir=/tmp/ts --socket="$SOCK" >/tmp/tailscaled.log 2>&1 &
