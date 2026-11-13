@@ -10,12 +10,12 @@ su propio origen, así que no necesita CORS. El acceso lo controla el login del 
 |---|---|
 | `deploy/railway/Dockerfile` | Build de Expo con `EXPO_PUBLIC_FOG_URL=/api` y imagen nginx. |
 | `deploy/railway/nginx.conf.template` | Servidor estático, proxy `/api/`, cabeceras de seguridad. |
-| `deploy/railway/railway.json` | Builder `DOCKERFILE`, healthcheck `/healthz`. |
+| Variable `RAILWAY_DOCKERFILE_PATH=deploy/railway/Dockerfile` | Selecciona el Dockerfile. Healthcheck `/healthz` y reintentos (máximo 3 ante fallo) se fijan en el panel del servicio. |
 
-En el servicio de Railway, indicar la ruta del archivo de configuración
-`/deploy/railway/railway.json` (Settings → Config-as-code). Railway marca config-as-code como
-heredado hasta 2026-12-01; si se migra a Infrastructure as Code, conservar el Dockerfile y el
-healthcheck. El contexto de build es la raíz del repo del frontend.
+Los proyectos nuevos de Railway ignoran `railway.json` (`railway config migrate status` informa que
+ningún servicio lee Config as Code) y la documentación de IaC no define la política de reinicio ni el
+Dockerfile (DEPLOY09). Sin `RAILWAY_DOCKERFILE_PATH` el servicio construye el `Dockerfile` genérico de
+la raíz, sin Tailscale. El contexto de build es la raíz del repo del frontend.
 
 ## Variables (Railway → Variables)
 
