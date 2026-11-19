@@ -13,6 +13,7 @@ import { useCombat } from '../context/CombatContext';
 import { Button } from '../components/Button';
 import { StateMessage } from '../components/StateMessage';
 import { SeccionCamara } from '../components/SeccionCamara';
+import { CerrarSesionValidacion } from '../components/CerrarSesionValidacion';
 import { useShortcut } from '../hooks/useShortcut';
 import { FENCER_LABEL } from '../theme/fencer';
 import { CONTROL_HEIGHT, FONT, RADIUS, space } from '../theme/tokens';
@@ -189,6 +190,10 @@ export function ConfigScreen() {
     }
   }
 
+  // El bloque de cierre aparece con el primer combate y se queda para mostrar el resultado del cierre.
+  const [mostrarCierre, setMostrarCierre] = useState(false);
+  useEffect(() => { if (combate) setMostrarCierre(true); }, [combate]);
+
   useShortcut({ tecla: 'Enter', ctrl: true, activo: !enviando }, handleCrear);
 
   return (
@@ -255,6 +260,7 @@ export function ConfigScreen() {
       />
 
       <SeccionCamara />
+      {mostrarCierre && <CerrarSesionValidacion />}
     </ScrollView>
   );
 }
