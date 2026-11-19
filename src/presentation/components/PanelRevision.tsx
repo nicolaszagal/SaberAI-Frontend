@@ -58,11 +58,45 @@ interface PasoClipProps {
   faltante: string | null;
 }
 
-export function PasoClip(p: PasoClipProps) {
+/**
+ * Estado visible del análisis o de la solicitud de VAR: tiempo transcurrido, listo o error.
+ * Lo usan la carga manual (Paso 1) y "Solicitar VAR" desde un tocado.
+ */
+export function EstadoAnalisis({ onReintentar, titulo = 'Error: no se pudo analizar el clip', siguiente = 'Revisa el clip y vuelve a intentarlo.' }: {
+  onReintentar: () => void; titulo?: string; siguiente?: string;
+}) {
   const C = useC();
   const s = useMemo(() => styles(C), [C]);
   const { sessionStatus, inicioAnalisis, errorMessage } = useSession();
   const transcurrido = useTranscurrido(inicioAnalisis);
+  return (
+    <>
+      {sessionStatus === 'analyzing' && (
+        <View testID="status-analyzing" style={s.estado}>
+          <ActivityIndicator size="small" color={C.cyan} />
+          <Text style={[s.estadoTexto, { color: C.cyan }]}>
+            Analizando… {transcurrido} s de {LIMITE_S} s
+          </Text>
+        </View>
+      )}
+      {sessionStatus === 'done' && (
+        <Text testID="status-done" style={[s.estadoTexto, { color: C.green }]}>✓ Listo</Text>
+      )}
+      {sessionStatus === 'error' && errorMessage && (
+        <StateMessage
+          testID="status-error" tipo="error" titulo={titulo}
+          siguiente={`${errorMessage.replace(/\.?\s*$/, '.')} ${siguiente}`}
+          accion={{ label: 'Reintentar', shortcut: 'Intro', onPress: onReintentar }}
+        />
+      )}
+    </>
+  );
+}
+
+export function PasoClip(p: PasoClipProps) {
+  const C = useC();
+  const s = useMemo(() => styles(C), [C]);
+  const { sessionStatus } = useSession();
   const analizando = sessionStatus === 'analyzing';
 
   return (
@@ -107,26 +141,7 @@ export function PasoClip(p: PasoClipProps) {
         <Text testID="analizar-falta" style={s.nota}>Falta: {p.faltante}.</Text>
       )}
 
-      {/* Estado visible del análisis */}
-      {analizando && (
-        <View testID="status-analyzing" style={s.estado}>
-          <ActivityIndicator size="small" color={C.cyan} />
-          <Text style={[s.estadoTexto, { color: C.cyan }]}>
-            Analizando… {transcurrido} s de {LIMITE_S} s
-          </Text>
-        </View>
-      )}
-      {sessionStatus === 'done' && (
-        <Text testID="status-done" style={[s.estadoTexto, { color: C.green }]}>✓ Listo</Text>
-      )}
-      {sessionStatus === 'error' && errorMessage && (
-        <StateMessage
-          testID="status-error" tipo="error"
-          titulo="Error: no se pudo analizar el clip"
-          siguiente={`${errorMessage.replace(/\.?\s*$/, '.')} Revisa el clip y vuelve a intentarlo.`}
-          accion={{ label: 'Reintentar', shortcut: 'Intro', onPress: p.onAnalizar }}
-        />
-      )}
+      <EstadoAnalisis onReintentar={p.onAnalizar} />
     </Paso>
   );
 }
@@ -170,7 +185,7 @@ export function PasoSugerencia() {
         </View>
       ) : (
         <Text testID="action-waiting" style={s.mutado}>
-          Sin sugerencia todavía. Completa el Paso 1 y pulsa ANALIZAR.
+          Sin sugerencia todavía. Pulsa Solicitar VAR en un tocado, o carga un archivo y pulsa ANALIZAR.
         </Text>
       )}
       <BotonesInterpretacion ctl={interpretacion} />

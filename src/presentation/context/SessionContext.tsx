@@ -1,7 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { RevisionAnalizada, VeredictoRegistrado } from '../../domain/entities/Action';
 import type { Decision } from '../../domain/entities/Combate';
-import { analyzeClip } from '../../application/AnalyzeClipUseCase';
+import { analyzeClip, LIMITE_ANALISIS_MS, revisionDesdeRespuesta } from '../../application/AnalyzeClipUseCase';
+import { solicitarVar } from '../../infrastructure/api/tocadosApi';
 import { postVeredicto } from '../../infrastructure/api/fogApi';
 import { useCombat } from './CombatContext';
 
@@ -26,6 +27,8 @@ interface SessionContextValue {
   veredictoStatus:  VeredictoStatus;
   veredictoError:   string | null;
   submitClip:       (clip: ClipInput) => Promise<void>;
+  /** "Solicitar VAR" sobre un tocado capturado: abre la revisión con la sugerencia ya calculada (D-04). */
+  abrirRevisionDeTocado: (tocadoId: string) => Promise<void>;
   /** Registra la decisión del árbitro sobre la revisión actual (CU-10). */
   registrarVeredicto: (decision: Decision, claseFinal: string | null) => Promise<void>;
   resetSession:     () => void;
@@ -83,6 +86,39 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [combate]);
 
+  const abrirRevisionDeTocado = useCallback(async (tocadoId: string) => {
+    if (!combate) return;
+    const mia = ++generacion.current;
+    setSessionStatus('analyzing');
+    setInicioAnalisis(Date.now());
+    setErrorMessage(null);
+    setRevision(null);
+    setVeredicto(null);
+    setVeredictoStatus('idle');
+    setVeredictoError(null);
+    const control = new AbortController();
+    const temporizador = setTimeout(() => control.abort(), LIMITE_ANALISIS_MS);
+    try {
+      const r = revisionDesdeRespuesta(await solicitarVar(tocadoId, control.signal));
+      if (mia !== generacion.current) return;
+      setRevision(r);
+      setSessionStatus('done');
+    } catch (e) {
+      if (mia !== generacion.current) return;
+      if (control.signal.aborted) {
+        // RF-13/RNF-09: pasados 60 s el árbitro sigue el procedimiento VAR habitual.
+        setRevision({ revisionId: null, sugerencia: null, motivo: 'timeout' });
+        setSessionStatus('done');
+      } else {
+        setSessionStatus('error');
+        setErrorMessage(e instanceof Error ? e.message : 'Error desconocido al solicitar el VAR.');
+      }
+    } finally {
+      clearTimeout(temporizador);
+      if (mia === generacion.current) setInicioAnalisis(null);
+    }
+  }, [combate]);
+
   const registrarVeredicto = useCallback(async (decision: Decision, claseFinal: string | null) => {
     if (!combate || !revision?.revisionId || veredictoStatus === 'enviando' || veredictoStatus === 'registrado') return;
     const mia = generacion.current;
@@ -103,7 +139,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   return (
     <SessionCtx.Provider value={{
       revision, sessionStatus, inicioAnalisis, errorMessage,
-      veredicto, veredictoStatus, veredictoError, submitClip, registrarVeredicto, resetSession,
+      veredicto, veredictoStatus, veredictoError, submitClip, abrirRevisionDeTocado, registrarVeredicto, resetSession,
     }}>
       {children}
     </SessionCtx.Provider>
