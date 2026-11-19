@@ -1,5 +1,5 @@
 /**
- * Cierre de sesión de validación (EDGE02, D-26): confirmación en la propia página, respaldo verificado y
+ * Cierre de sesión de validación (D-22, D-26): confirmación en la propia página, respaldo verificado y
  * purga solo si pasa; si el respaldo falla no se borra nada y se informa.
  */
 import { expect, test, type Page } from '@playwright/test';
@@ -29,17 +29,19 @@ test('el cierre pide confirmación en la página, sin cuadro del navegador, y no
 
 test('confirmar cierra la sesión: informa el respaldo y los clips borrados, y el combate deja de estar activo', async ({ page }) => {
   let llamadas = 0;
+  let cuerpo: unknown;
   await page.route('**/sesion/cerrar', route => {
     llamadas += 1;
-    return route.fulfill(json({ respaldo: 'Respaldo verificado', clips_borrados: 3, archivos_edge_borrados: 4 }));
+    cuerpo = route.request().postDataJSON();
+    return route.fulfill(json({ respaldo: 'Respaldo verificado', clips_borrados: 3 }));
   });
   await irAConfig(page);
   await page.getByTestId('cerrar-validacion-btn').click();
   await page.getByTestId('cerrar-validacion-confirmar').click();
   await expect(page.getByTestId('cerrar-validacion-ok')).toContainText('Sesión cerrada');
-  await expect(page.getByTestId('cerrar-validacion-ok')).toContainText('3 en Fog');
-  await expect(page.getByTestId('cerrar-validacion-ok')).toContainText('4 archivos en Edge');
+  await expect(page.getByTestId('cerrar-validacion-ok')).toContainText('clips borrados: 3');
   expect(llamadas).toBe(1);
+  expect(cuerpo).toEqual({ match_id: '33333333-3333-4333-8333-333333333333' });
   await expect(page.getByTestId('combate-activo')).toHaveCount(0);
 });
 
@@ -49,7 +51,7 @@ test('si el respaldo falla: lo dice, aclara que no se borró nada, el combate si
     intento += 1;
     return intento === 1
       ? route.fulfill(json({ detail: 'El respaldo falló y no se borró nada: la verificación falló: conteos distintos', codigo: 'respaldo_fallido' }, 500))
-      : route.fulfill(json({ respaldo: 'ok', clips_borrados: 1, archivos_edge_borrados: 0 }));
+      : route.fulfill(json({ respaldo: 'ok', clips_borrados: 1 }));
   });
   await irAConfig(page);
   await page.getByTestId('cerrar-validacion-btn').click();

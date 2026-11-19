@@ -1,5 +1,5 @@
 /**
- * "Cerrar sesión de validación" (EDGE02, D-26): respaldo verificado (sin clips) y, solo si pasa, purga de los
+ * "Cerrar sesión de validación" (D-22, D-26): respaldo verificado (sin clips) y, solo si pasa, purga de los
  * clips de la sesión. La confirmación va en la propia página (nada de `confirm()`). Si el respaldo falla no se
  * borra nada y se informa, con la opción de reintentar. No es el "Cerrar sesión" del encabezado, que solo sale
  * de la cuenta.
@@ -10,7 +10,7 @@ import { useC } from '../context/ThemeContext';
 import { useCombat } from '../context/CombatContext';
 import { Button } from './Button';
 import { FONT, RADIUS, space } from '../theme/tokens';
-import { cerrarSesionValidacion, type SesionCerrada } from '../../infrastructure/api/tocadosApi';
+import { cerrarSesionValidacion, type SesionCerrada } from '../../infrastructure/api/sesionApi';
 import { FogError } from '../../infrastructure/api/fogApi';
 
 type Fase = 'reposo' | 'confirmando' | 'cerrando' | 'cerrada' | 'fallo';
@@ -23,18 +23,19 @@ export function CerrarSesionValidacion() {
   const [resultado, setResultado] = useState<SesionCerrada | null>(null);
   const [fallo, setFallo] = useState<string | null>(null);
 
-  // Un combate nuevo abre otra sesión: el bloque vuelve a su estado inicial.
   const matchId = combate?.matchId ?? null;
+  // Un combate nuevo abre otra sesión: el bloque vuelve a su estado inicial.
   useEffect(() => { if (matchId) setFase('reposo'); }, [matchId]);
 
   async function cerrar() {
     setFase('cerrando');
     setFallo(null);
     try {
-      const r = await cerrarSesionValidacion();
+      if (!matchId) throw new Error('No hay un combate activo');
+      const r = await cerrarSesionValidacion(matchId);
       setResultado(r);
       setFase('cerrada');
-      finalizarCombate(); // el nodo ya no tiene combate activo
+      finalizarCombate();
     } catch (e) {
       setFallo(
         e instanceof FogError ? e.detalle
@@ -57,7 +58,7 @@ export function CerrarSesionValidacion() {
         <View testID="cerrar-validacion-confirmacion" style={s.aviso} accessibilityRole="alert">
           <Text style={s.texto}>
             Se hará el respaldo verificado de la sesión (sin los clips) y, solo si pasa, se borrarán los clips de
-            video de Fog y de Edge. Esto no se puede deshacer.
+            video. Esto no se puede deshacer.
           </Text>
           <View style={s.fila}>
             <Button testID="cerrar-validacion-confirmar" variant="primary" label="Sí, respaldar y borrar los clips" onPress={() => { void cerrar(); }} />
@@ -72,8 +73,7 @@ export function CerrarSesionValidacion() {
 
       {fase === 'cerrada' && resultado && (
         <Text testID="cerrar-validacion-ok" style={[s.texto, { color: C.green }]}>
-          ✓ Sesión cerrada. Respaldo verificado; clips borrados: {resultado.clipsBorrados} en Fog y{' '}
-          {resultado.archivosEdgeBorrados} archivos en Edge.
+          ✓ Sesión cerrada. Respaldo verificado; clips borrados: {resultado.clipsBorrados}.
         </Text>
       )}
 

@@ -34,7 +34,7 @@ test('login correcto guarda el token en sessionStorage y lleva a la pantalla ini
   await page.getByTestId('login-usuario').fill('maestro');
   await page.getByTestId('login-password').fill('secreta');
   await page.getByTestId('login-btn').click();
-  await expect(page.getByTestId('panel-tocados')).toBeVisible();
+  await expect(page.getByTestId('analizar-btn')).toBeVisible();
   expect(cuerpo).toEqual({ usuario: 'maestro', password: 'secreta' });
   expect(await token(page)).toBe('jwt-123');
   expect(await page.evaluate(() => localStorage.getItem('sabre.token'))).toBeNull();
@@ -98,7 +98,7 @@ test('al cargar, un token que /auth/me rechaza (401) vuelve al login y se borra'
 test('un 401 simulado en una llamada vuelve al login', async ({ page }) => {
   await mockApi(page);
   await page.goto('/');
-  await expect(page.getByTestId('panel-tocados')).toBeVisible();
+  await expect(page.getByTestId('analizar-btn')).toBeVisible();
   // Desde ahora el Fog rechaza el token en toda llamada.
   await page.route('**/eventos', route => route.fulfill(json({ detail: 'No autenticado' }, 401)));
   await page.getByTestId('nav-config').click();

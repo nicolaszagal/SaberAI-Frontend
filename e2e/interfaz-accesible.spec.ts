@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { mockApi, configurarCombate, mockClip, analizarClip, CLIP_OK, abrirCargaManual } from './helpers';
+import { mockApi, configurarCombate, mockClip, analizarClip, CLIP_OK } from './helpers';
 
 const FIXTURE = 'e2e/fixtures/dummy.mp4';
 const RUTAS = ['/', '/live', '/history', '/config'];
@@ -56,7 +56,6 @@ for (const tema of ['claro', 'oscuro'] as const) {
 test('los tiradores se rotulan con texto: "A · ROJ" y "B · VER"', async ({ page }) => {
   await mockApi(page);
   await page.goto('/live');
-  await abrirCargaManual(page);
   await expect(page.getByTestId('marcar-luz-a-btn')).toContainText('A · ROJ');
   await expect(page.getByTestId('marcar-luz-b-btn')).toContainText('B · VER');
   await page.goto('/config');
@@ -78,7 +77,6 @@ test('el resultado rotula el lado con texto y la salida como sugerencia', async 
 test('los botones principales muestran su atajo de teclado', async ({ page }) => {
   await mockApi(page);
   await page.goto('/live');
-  await abrirCargaManual(page);
   await expect(page.getByTestId('select-clip-btn')).toContainText('S');
   await expect(page.getByTestId('analizar-btn')).toContainText('Intro');
   await page.goto('/config');
@@ -89,7 +87,6 @@ test('el atajo S abre el selector de clip aunque el foco esté en un botón', as
   await mockApi(page);
   await page.goto('/');
   await page.getByTestId('nav-live').click();
-  await abrirCargaManual(page);
   await expect(page.getByTestId('select-clip-btn')).toBeVisible();
   const chooser = page.waitForEvent('filechooser');
   await page.keyboard.press('s');
