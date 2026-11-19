@@ -1,0 +1,3 @@
+# Trabajo futuro: interfaz de Edge y Favero (rama `future/edge-favero`)
+
+Fuera de alcance por solicitud de cambio del 20/11/2026. Esta rama conserva la interfaz tal como estaba en `main` antes de SCOPE01: "Últimos tocados" con "Solicitar VAR" y decisión en pista, visor en bucle, botones de señal de prueba, sección Cámara, aviso "sin señal Favero" y "Cerrar sesión de validación" (aquí sin `match_id`). Ver `docs/FUTURO_EDGE_FAVERO.md` en la rama del backend. Al reintegrarla, el cierre de sesión debe enviar `{match_id}` como en `main`, y las pruebas de Playwright de EDGE02 (`e2e/tocados.spec.ts`) vuelven con la carga manual detrás del botón de respaldo.
