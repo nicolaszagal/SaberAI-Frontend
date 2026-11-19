@@ -82,16 +82,11 @@ export interface RevisionDetalle {
   auditoriaHash: string | null;
 }
 
-/** Métricas de una validación (V1 o V2) en GET /validaciones/{evento_id}/resumen; solo los campos que usa la interfaz. */
+/** Métricas de la validación (única) en GET /validaciones/{evento_id}/resumen; solo los campos que usa la interfaz. */
 export interface ResumenValidacion {
   nRevisiones: number;
   latencia: { p95Ms: number | null; p95ExcedeUmbral: boolean };
   kappa: { calculable: boolean; kappa: number | null; banda: string | null };
-}
-
-export interface ResumenSesion {
-  V1: ResumenValidacion;
-  V2: ResumenValidacion;
 }
 
 /** Valores de `decision` del veredicto (CONTRATO_API 7.1). */

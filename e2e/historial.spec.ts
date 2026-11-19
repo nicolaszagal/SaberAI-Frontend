@@ -113,7 +113,7 @@ test('estados vacío y de error del listado', async ({ page }) => {
 });
 
 test('Exportar evidencia descarga el resumen del evento activo', async ({ page }) => {
-  const resumen = { evento_id: EVENTO_ID, por_validacion: { V1: { n_revisiones: 2 } } };
+  const resumen = { evento_id: EVENTO_ID, validacion: { n_revisiones: 2 } };
   await mockApi(page, { revisiones: [fila(REVISION_ID, {})], resumen });
   await configurarCombate(page);
   await page.getByTestId('nav-history').click();
@@ -157,34 +157,30 @@ test('sin combate activo no muestra el resumen ni consulta las métricas', async
 test('con datos reales muestra N revisiones, κ y latencia p95 encima de la lista', async ({ page }) => {
   await mockApi(page, {
     revisiones: [fila(REVISION_ID, {})],
-    resumen: { por_validacion: {
-      V1: bloqueValidacion({ n: 8, kappa: 0.3333, banda: 'aceptable', p95: 4800 }),
-      V2: bloqueValidacion(),
-    } },
+    resumen: { validacion: bloqueValidacion({ n: 8, kappa: 0.3333, banda: 'aceptable', p95: 4800 }) },
   });
   await configurarCombate(page);
   const consulta = page.waitForRequest(r => r.url().includes('/validaciones/'));
   await page.getByTestId('nav-history').click();
   expect(new URL((await consulta).url()).pathname).toBe(`/validaciones/${EVENTO_ID}/resumen`);
-  await expect(page.getByTestId('resumen-V1')).toHaveText('Validación 1 · 8 revisiones · κ 0.33 (aceptable) · latencia p95 4.8 s');
-  await expect(page.getByTestId('resumen-V2')).toHaveCount(0);
+  await expect(page.getByTestId('resumen-validacion')).toHaveText('Validación · 8 revisiones · κ 0.33 (aceptable) · latencia p95 4.8 s');
   const resumen = await page.getByTestId('resumen-sesion').boundingBox();
   const lista = await page.getByTestId('revision-row').first().boundingBox();
   expect(resumen!.y).toBeLessThan(lista!.y);
 });
 
 test('sin κ calculable ni p95 muestra solo lo que existe', async ({ page }) => {
-  await mockApi(page, { resumen: { por_validacion: { V1: bloqueValidacion({ n: 1 }), V2: bloqueValidacion() } } });
+  await mockApi(page, { resumen: { validacion: bloqueValidacion({ n: 1 }) } });
   await configurarCombate(page);
   await page.getByTestId('nav-history').click();
-  await expect(page.getByTestId('resumen-V1')).toHaveText('Validación 1 · 1 revisión');
+  await expect(page.getByTestId('resumen-validacion')).toHaveText('Validación · 1 revisión');
 });
 
 test('si el p95 excede 60 s lo indica como > 60 s', async ({ page }) => {
-  await mockApi(page, { resumen: { por_validacion: { V1: bloqueValidacion({ n: 4, excede: true }), V2: bloqueValidacion() } } });
+  await mockApi(page, { resumen: { validacion: bloqueValidacion({ n: 4, excede: true }) } });
   await configurarCombate(page);
   await page.getByTestId('nav-history').click();
-  await expect(page.getByTestId('resumen-V1')).toContainText('latencia p95 > 60 s');
+  await expect(page.getByTestId('resumen-validacion')).toContainText('latencia p95 > 60 s');
 });
 
 test('sin revisiones con veredicto o con error del Fog no muestra el resumen', async ({ page }) => {
