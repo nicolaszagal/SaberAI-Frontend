@@ -5,7 +5,7 @@ import type { PoseTirador, VistaPose } from '../../domain/entities/Pose';
 import type { EstadoRazonamiento, VistaRazonamiento } from '../../domain/entities/Razonamiento';
 import type {
   BrazoArmado, CombateActivo, ConfigCombateInput, Decision, EventoCatalogo, HealthResponse,
-  ModeloActivo, RevisionDetalle, RevisionResumen, ResumenSesion, ResumenValidacion, TiradorConfig, UsuarioCatalogo,
+  ModeloActivo, RevisionDetalle, RevisionResumen, ResumenValidacion, TiradorConfig, UsuarioCatalogo,
 } from '../../domain/entities/Combate';
 
 export interface ClipUploadResponse {
@@ -265,15 +265,15 @@ const aResumenValidacion = (v: ResumenValidacionDto): ResumenValidacion => ({
 });
 
 /**
- * GET /validaciones/{evento_id}/resumen: métricas de la sesión separadas por V1 y V2 (sin total).
+ * GET /validaciones/{evento_id}/resumen: métricas de la validación (una sola, κ sistema-árbitro).
  *
  * Raises:
  *   Error: si el evento no existe (404) o el Fog no responde.
  */
-export async function getResumenSesion(eventoId: string): Promise<ResumenSesion> {
-  const r = await getJson<{ por_validacion: { V1: ResumenValidacionDto; V2: ResumenValidacionDto } }>(
+export async function getResumenSesion(eventoId: string): Promise<ResumenValidacion> {
+  const r = await getJson<{ validacion: ResumenValidacionDto }>(
     `/validaciones/${encodeURIComponent(eventoId)}/resumen`);
-  return { V1: aResumenValidacion(r.por_validacion.V1), V2: aResumenValidacion(r.por_validacion.V2) };
+  return aResumenValidacion(r.validacion);
 }
 
 /** POST /matches/config (CU-01). Devuelve el `match_id` del combate creado. */

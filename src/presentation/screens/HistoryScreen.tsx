@@ -17,7 +17,7 @@ import { descargarTexto, puedeDescargar } from '../../infrastructure/descarga';
 import {
   concordancia, etiquetaDecision, motivoLegible, scaleConfidence, tiradorDeClase, translateAction,
 } from '../../application/mappers/actionMapper';
-import type { ResumenSesion, ResumenValidacion, RevisionDetalle, RevisionResumen } from '../../domain/entities/Combate';
+import type { ResumenValidacion, RevisionDetalle, RevisionResumen } from '../../domain/entities/Combate';
 import { FENCER_LABEL } from '../theme/fencer';
 import { FONT, RADIUS, space } from '../theme/tokens';
 import type { Screen } from '../../../App';
@@ -67,7 +67,7 @@ export function HistoryScreen({ onNavigate }: Props) {
   const { combate, validando } = useCombat();
   const eventoId = combate?.eventoId ?? null;
 
-  const [resumen, setResumen] = useState<ResumenSesion | null>(null);
+  const [resumen, setResumen] = useState<ResumenValidacion | null>(null);
   const [revisiones, setRevisiones] = useState<RevisionResumen[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [seleccionada, setSeleccionada] = useState<string | null>(null);
@@ -102,10 +102,7 @@ export function HistoryScreen({ onNavigate }: Props) {
     return () => { activo = false; };
   }, [eventoId]);
 
-  const bloques = resumen
-    ? ([['V1', 'Validación 1', resumen.V1], ['V2', 'Validación 2', resumen.V2]] as const)
-      .filter(([, , v]) => v.nRevisiones > 0)
-    : [];
+  const hayResumen = resumen !== null && resumen.nRevisiones > 0;
 
   const cargarDetalle = useCallback((id: string) => {
     let activo = true;
@@ -174,13 +171,11 @@ export function HistoryScreen({ onNavigate }: Props) {
         )}
       </View>
 
-      {bloques.length > 0 && (
+      {hayResumen && (
         <View testID="resumen-sesion" style={s.resumen}>
-          {bloques.map(([clave, etiqueta, v]) => (
-            <Text key={clave} testID={`resumen-${clave}`} style={s.resumenTexto}>
-              {etiqueta} · {lineaResumen(v)}
-            </Text>
-          ))}
+          <Text testID="resumen-validacion" style={s.resumenTexto}>
+            Validación · {lineaResumen(resumen)}
+          </Text>
         </View>
       )}
 

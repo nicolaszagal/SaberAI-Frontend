@@ -19,7 +19,7 @@ export const COMBATE_OK = {
   alias_A: 'Rojo', weapon_side_A: 'right', alias_B: 'Verde', weapon_side_B: 'left',
 };
 
-/** Bloque V1/V2 de GET /validaciones/{evento_id}/resumen (solo los campos que usa la interfaz). */
+/** Bloque `validacion` de GET /validaciones/{evento_id}/resumen (solo los campos que usa la interfaz). */
 export function bloqueValidacion(o: {
   n?: number; kappa?: number | null; banda?: string | null; p95?: number | null; excede?: boolean;
 } = {}) {
@@ -34,7 +34,7 @@ export function bloqueValidacion(o: {
 /** Resumen de la sesión sin revisiones con veredicto. */
 export const RESUMEN_VACIO = {
   evento_id: EVENTO_ID,
-  por_validacion: { V1: bloqueValidacion(), V2: bloqueValidacion() },
+  validacion: bloqueValidacion(),
 };
 
 const json = (body: unknown, status = 200) => ({
