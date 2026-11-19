@@ -12,6 +12,7 @@ import { useC } from '../context/ThemeContext';
 import { useCombat } from '../context/CombatContext';
 import { Button } from '../components/Button';
 import { StateMessage } from '../components/StateMessage';
+import { SeccionCamara } from '../components/SeccionCamara';
 import { useShortcut } from '../hooks/useShortcut';
 import { FENCER_LABEL } from '../theme/fencer';
 import { CONTROL_HEIGHT, FONT, RADIUS, space } from '../theme/tokens';
@@ -252,6 +253,8 @@ export function ConfigScreen() {
         label={enviando ? 'Creando…' : 'Crear combate'} shortcut="Ctrl+Intro"
         onPress={handleCrear} disabled={enviando}
       />
+
+      <SeccionCamara />
     </ScrollView>
   );
 }

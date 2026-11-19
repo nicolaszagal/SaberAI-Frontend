@@ -34,7 +34,7 @@ export class FogError extends Error {
 }
 
 /** Mensaje de error de una respuesta no exitosa: `detail` del Fog si viene, si no el texto crudo. */
-async function errorDeRespuesta(res: Response): Promise<FogError> {
+export async function errorDeRespuesta(res: Response): Promise<FogError> {
   const texto = await res.text();
   let detalle = texto;
   let codigo: string | null = null;

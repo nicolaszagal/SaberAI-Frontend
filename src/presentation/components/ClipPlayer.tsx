@@ -14,13 +14,17 @@ interface Props {
   src: string | null;
   /** Referencia al `<video>`, para leer el instante actual al marcar el tocado. */
   videoRef: React.RefObject<HTMLVideoElement | null>;
+  /** Reproduce en bucle (visor del último tocado) y arranca solo. */
+  bucle?: boolean;
+  /** Texto breve sobre la imagen (p. ej. "Procesando…") sin tapar el video. */
+  insignia?: string | null;
 }
 
 /**
  * Reproductor del clip con velocidad 1×, 0.5× y 0.25× y avance/retroceso de un
  * cuadro. Cambiar la velocidad solo modifica `playbackRate`: no toca la clasificación.
  */
-export function ClipPlayer({ src, videoRef }: Props) {
+export function ClipPlayer({ src, videoRef, bucle = false, insignia = null }: Props) {
   const C = useC();
   const s = useMemo(() => styles(), []);
   const [velocidad, setVelocidad] = useState<number>(1);
@@ -68,6 +72,11 @@ export function ClipPlayer({ src, videoRef }: Props) {
   return (
     <View style={s.root}>
       <View style={s.video}>
+        {insignia ? (
+          <View testID="visor-insignia" style={s.insignia} pointerEvents="none">
+            <Text style={s.insigniaTexto}>{insignia}</Text>
+          </View>
+        ) : null}
         {src ? (
           <video
             ref={videoRef as React.RefObject<HTMLVideoElement>}
@@ -75,6 +84,9 @@ export function ClipPlayer({ src, videoRef }: Props) {
             src={src}
             controls
             playsInline
+            loop={bucle}
+            autoPlay={bucle}
+            muted={bucle}
             onPlay={() => setReproduciendo(true)}
             onPause={() => setReproduciendo(false)}
             onRateChange={e => setVelocidad((e.target as HTMLVideoElement).playbackRate)}
@@ -83,7 +95,7 @@ export function ClipPlayer({ src, videoRef }: Props) {
         ) : (
           <View style={s.vacio}>
             <Text style={s.vacioTitulo}>Sin clip cargado</Text>
-            <Text style={s.vacioTexto}>Elige un MP4 o MOV en el Paso 1 (tecla S).</Text>
+            <Text style={s.vacioTexto}>Aparecerá aquí el último tocado capturado.</Text>
           </View>
         )}
       </View>
@@ -123,4 +135,6 @@ const styles = () => StyleSheet.create({
   controles:   { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space(2), padding: space(2), borderTopWidth: 1 },
   velocidades: { flexDirection: 'row', gap: space(1), marginLeft: 'auto' },
   nota:        { fontSize: FONT.xs, flexBasis: '100%' },
+  insignia:    { position: 'absolute', top: space(2), right: space(2), zIndex: 2, backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: space(2), paddingVertical: space(1), borderRadius: 6 },
+  insigniaTexto: { color: '#ffffff', fontSize: FONT.xs, fontWeight: '700' },
 });

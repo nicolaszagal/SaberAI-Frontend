@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { mockApi, configurarCombate, mockClip, analizarClip, CLIP_OK, ARBITRO_ID, REVISION_ID, MATCH_ID } from './helpers';
+import { mockApi, configurarCombate, mockClip, analizarClip, CLIP_OK, ARBITRO_ID, REVISION_ID, MATCH_ID, abrirCargaManual } from './helpers';
 
 const FIXTURE = 'e2e/fixtures/dummy.mp4';
 const VIDEO = 'e2e/fixtures/player.webm';
@@ -29,6 +29,8 @@ test.beforeEach(async ({ page }) => {
 
 test.describe('estructura', () => {
   test('muestra los tres pasos y no quedan textos fijos ni botones del panel anterior', async ({ page }) => {
+    await expect(page.getByTestId('panel-tocados')).toContainText('Últimos tocados');
+    await abrirCargaManual(page);
     await expect(page.getByTestId('paso-clip')).toContainText('Paso 1 · Clip');
     await expect(page.getByTestId('paso-sugerencia')).toContainText('Paso 2 · Sugerencia');
     await expect(page.getByTestId('paso-decision')).toContainText('Paso 3 · Decisión del árbitro');
@@ -39,6 +41,7 @@ test.describe('estructura', () => {
   });
 
   test('ningún botón queda sin acción: antes de analizar todo lo que decide está deshabilitado', async ({ page }) => {
+    await abrirCargaManual(page);
     await expect(page.getByTestId('analizar-btn')).toHaveAttribute('aria-disabled', 'true');
     await expect(page.getByTestId('selector-clase')).toHaveCount(0);
     await expect(page.getByTestId('veredicto-anular')).toHaveCount(0);
@@ -76,6 +79,7 @@ test.describe('Paso 1 · Clip', () => {
 
   test('ANALIZAR se habilita con al menos una luz marcada y se deshabilita al quitarla', async ({ page }) => {
     const analizar = page.getByTestId('analizar-btn');
+    await abrirCargaManual(page);
     await expect(page.getByTestId('analizar-falta')).toContainText('elegir un clip');
     await page.getByTestId('file-input').setInputFiles(FIXTURE);
     await expect(page.getByTestId('filename-display')).toContainText('dummy.mp4');
