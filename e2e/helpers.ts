@@ -19,34 +19,6 @@ export const COMBATE_OK = {
   alias_A: 'Rojo', weapon_side_A: 'right', alias_B: 'Verde', weapon_side_B: 'left',
 };
 
-export const TOCADO_ID = '55555555-5555-4555-8555-555555555555';
-
-/** Fila de GET /matches/{id}/tocados (sin sugerencia: solo aparece dentro de la revisión, D-04). */
-export function tocadoJson(o: Partial<{
-  tocado_id: string; creado_en: string; fuente: string; luz_A: boolean; luz_B: boolean;
-  t_luz_a_ms: number | null; t_luz_b_ms: number | null; estado: string; tiene_clip: boolean;
-  revision_id: string | null; revisado: boolean; admite_var: boolean;
-  decision_pista: { clase: string | null; anulado: boolean; registrado_en: string } | null;
-}> = {}) {
-  return {
-    tocado_id: TOCADO_ID, creado_en: '2026-11-18T15:00:00Z', fuente: 'favero', luz_A: true, luz_B: false,
-    t_luz_a_ms: 2000, t_luz_b_ms: null, estado: 'listo', tiene_clip: true, revision_id: null,
-    revisado: false, admite_var: true, decision_pista: null, ...o,
-  };
-}
-
-/** Estado de GET /edge/estado (Edge simulado). */
-export function estadoEdge(o: { modo_prueba?: boolean; sin_senal?: boolean; fuente?: string; fps?: number; avisos?: string[] } = {}) {
-  return {
-    camara: {
-      abierta: true, error: null, indice: 0, resolucion: { ancho: 1280, alto: 720 },
-      fps_configurados: 30, fps_medidos: o.fps ?? 29.9, avisos: o.avisos ?? [],
-    },
-    senal: { fuente: o.fuente ?? 'ninguna', sin_senal_favero: o.sin_senal ?? false },
-    modo_prueba: o.modo_prueba ?? false, tocados_escritos: 0, envio: null,
-  };
-}
-
 /** Bloque V1/V2 de GET /validaciones/{evento_id}/resumen (solo los campos que usa la interfaz). */
 export function bloqueValidacion(o: {
   n?: number; kappa?: number | null; banda?: string | null; p95?: number | null; excede?: boolean;
@@ -79,10 +51,6 @@ export async function mockApi(page: Page, opts: {
   health?: 'ok' | 'degradado' | 'caido';
   /** false = sin token guardado (la app abre en el login). Por defecto hay una sesión iniciada. */
   sesion?: boolean;
-  /** Respuesta de GET /matches/{id}/tocados (por defecto, ninguno). Puede ser una función para cambiarla en vivo. */
-  tocados?: unknown[] | (() => unknown[]);
-  /** Respuesta de GET /edge/estado; sin él, Edge "no responde" (503). */
-  edge?: unknown;
 } = {}) {
   // DEPLOY06: sesión iniciada de antemano para que las pruebas lleguen a las pantallas protegidas.
   if (opts.sesion !== false) {
@@ -111,12 +79,6 @@ export async function mockApi(page: Page, opts: {
     const d = opts.detalles?.[id];
     return route.fulfill(d ? json(d) : json({ detail: 'no existe' }, 404));
   });
-  await page.route(/\/matches\/[0-9a-f-]{36}\/tocados(\?.*)?$/, route =>
-    route.fulfill(json(typeof opts.tocados === 'function' ? opts.tocados() : opts.tocados ?? [])));
-  await page.route('**/edge/estado', route =>
-    opts.edge ? route.fulfill(json(opts.edge))
-      : route.fulfill(json({ detail: 'Edge no responde', codigo: 'edge_no_disponible' }, 503)));
-  await page.route('**/edge/preview', route => route.fulfill(json({ detail: 'sin frames' }, 404)));
   await page.route('**/validaciones/*/resumen', route => route.fulfill(json(opts.resumen ?? RESUMEN_VACIO)));
   await page.route('**/matches/config', route =>
     route.fulfill(json({ match_id: MATCH_ID, weapon_side_A: 'right', weapon_side_B: 'left' })));
@@ -141,16 +103,8 @@ export async function mockClip(page: Page, body: unknown = CLIP_OK, status = 200
   await page.route('**/matches/*/clip', route => route.fulfill(json(body, status)));
 }
 
-/** Abre el bloque de carga manual de un archivo (respaldo de la V1, RNF-09). */
-export async function abrirCargaManual(page: Page) {
-  if (!(await page.getByTestId('select-clip-btn').isVisible())) {
-    await page.getByTestId('cargar-manual-btn').click();
-  }
-}
-
 /** Elige el clip, marca la luz de A en el instante actual del reproductor y pulsa ANALIZAR. */
 export async function analizarClip(page: Page, fixture = 'e2e/fixtures/dummy.mp4') {
-  await abrirCargaManual(page);
   await page.getByTestId('file-input').setInputFiles(fixture);
   await page.getByTestId('marcar-luz-a-btn').click();
   await page.getByTestId('analizar-btn').click();

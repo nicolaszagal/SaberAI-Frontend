@@ -12,7 +12,6 @@ import { useC } from '../context/ThemeContext';
 import { useCombat } from '../context/CombatContext';
 import { Button } from '../components/Button';
 import { StateMessage } from '../components/StateMessage';
-import { SeccionCamara } from '../components/SeccionCamara';
 import { CerrarSesionValidacion } from '../components/CerrarSesionValidacion';
 import { useShortcut } from '../hooks/useShortcut';
 import { FENCER_LABEL } from '../theme/fencer';
@@ -259,7 +258,6 @@ export function ConfigScreen() {
         onPress={handleCrear} disabled={enviando}
       />
 
-      <SeccionCamara />
       {mostrarCierre && <CerrarSesionValidacion />}
     </ScrollView>
   );

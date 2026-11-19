@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
 test('la app abre directo en Revisión VAR', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('SABRE.AI').first()).toBeVisible();
-  await expect(page.getByTestId('panel-tocados')).toBeVisible();
+  await expect(page.getByTestId('analizar-btn')).toBeVisible();
 });
 
 test('la navegación tiene solo Revisión VAR, Historial y Combate', async ({ page }) => {
@@ -24,13 +24,13 @@ test('se puede ir a Historial y Combate y volver a Revisión VAR', async ({ page
   await page.getByTestId('nav-config').click();
   await expect(page.getByTestId('crear-combate-btn')).toBeVisible();
   await page.getByTestId('nav-live').click();
-  await expect(page.getByTestId('panel-tocados')).toBeVisible();
+  await expect(page.getByTestId('analizar-btn')).toBeVisible();
 });
 
 test('las rutas retiradas (Inicio, torneo) caen en Revisión VAR', async ({ page }) => {
   for (const ruta of ['/tournament', '/dashboard']) {
     await page.goto(ruta);
-    await expect(page.getByTestId('panel-tocados')).toBeVisible();
+    await expect(page.getByTestId('analizar-btn')).toBeVisible();
   }
 });
 

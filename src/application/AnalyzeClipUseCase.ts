@@ -1,6 +1,6 @@
 import type { RevisionAnalizada } from '../domain/entities/Action';
 import type { CombateActivo } from '../domain/entities/Combate';
-import { uploadClip, type ClipUploadResponse } from '../infrastructure/api/fogApi';
+import { uploadClip } from '../infrastructure/api/fogApi';
 import { scaleConfidence } from './mappers/actionMapper';
 
 /** Límite de espera de la sugerencia dentro de la revisión (D-08, RNF-04). */
@@ -11,18 +11,6 @@ export interface AnalyzeClipInput {
   tLuzAMs: number | null;
   tLuzBMs: number | null;
   combate: CombateActivo;
-}
-
-/** Convierte la respuesta del Fog (clip subido o "Solicitar VAR") en la revisión con su sugerencia. */
-export function revisionDesdeRespuesta(r: ClipUploadResponse): RevisionAnalizada {
-  if (!r.disponible || !r.fencer || !r.action || r.confidence == null) {
-    return { revisionId: r.revision_id, sugerencia: null, motivo: r.motivo ?? (r.timed_out ? 'timeout' : null) };
-  }
-  return {
-    revisionId: r.revision_id,
-    sugerencia: { fencer: r.fencer, action: r.action, confidence: scaleConfidence(r.confidence) },
-    motivo: null,
-  };
 }
 
 /**
@@ -46,7 +34,14 @@ export async function analyzeClip(input: AnalyzeClipInput): Promise<RevisionAnal
   const temporizador = setTimeout(() => control.abort(), LIMITE_ANALISIS_MS);
   try {
     const r = await uploadClip(combate.matchId, file, tLuzAMs, tLuzBMs, control.signal);
-    return revisionDesdeRespuesta(r);
+    if (!r.disponible || !r.fencer || !r.action || r.confidence == null) {
+      return { revisionId: r.revision_id, sugerencia: null, motivo: r.motivo ?? (r.timed_out ? 'timeout' : null) };
+    }
+    return {
+      revisionId: r.revision_id,
+      sugerencia: { fencer: r.fencer, action: r.action, confidence: scaleConfidence(r.confidence) },
+      motivo: null,
+    };
   } catch (e) {
     if (control.signal.aborted) return { revisionId: null, sugerencia: null, motivo: 'timeout' };
     throw e;
