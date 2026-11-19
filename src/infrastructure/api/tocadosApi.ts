@@ -104,3 +104,23 @@ export async function emitirSenalPrueba(luzA: boolean, luzB: boolean): Promise<v
   });
   if (!res.ok) throw await errorDeRespuesta(res);
 }
+
+export interface SesionCerrada {
+  respaldo: string;
+  clipsBorrados: number;
+  archivosEdgeBorrados: number;
+}
+
+/**
+ * POST /sesion/cerrar: respaldo verificado (sin clips) y, solo si pasa, purga de los clips de la sesión.
+ *
+ * Raises:
+ *   FogError: 409 (`sin_combate_activo`) si no hay sesión; 500 (`respaldo_fallido`) si el respaldo falló,
+ *     con la salida del respaldo en `detalle`: en ese caso no se borró nada.
+ */
+export async function cerrarSesionValidacion(): Promise<SesionCerrada> {
+  const res = await fogFetch('/sesion/cerrar', { method: 'POST' });
+  if (!res.ok) throw await errorDeRespuesta(res);
+  const j = (await res.json()) as { respaldo: string; clips_borrados: number; archivos_edge_borrados: number };
+  return { respaldo: j.respaldo, clipsBorrados: j.clips_borrados, archivosEdgeBorrados: j.archivos_edge_borrados };
+}
