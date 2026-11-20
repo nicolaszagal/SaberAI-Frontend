@@ -24,8 +24,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test:e2e": "playwright test",
-    "build:remoto": "EXPO_PUBLIC_FOG_URL=/api CI=1 expo export --platform web --output-dir dist-remoto"
+    "test:e2e": "playwright test"
   },
   "private": true,
   "allowScripts": {

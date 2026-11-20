@@ -13,7 +13,7 @@ trap 'docker rm -f $NOMBRE >/dev/null 2>&1; rm -rf "$HTML"' EXIT
 arrancar() { # arrancar <FOG_ORIGENES_EXTRA>
     docker rm -f $NOMBRE >/dev/null 2>&1 || true
     docker run -d --name $NOMBRE -p 127.0.0.1:18098:8098 -e PORT=8098 -e "FOG_ORIGENES_EXTRA=$1" \
-        -v "$PWD/deploy/railway/nginx.estatico.conf.template:/etc/nginx/templates/default.conf.template:ro" \
+        -v "$PWD/deploy/railway/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro" \
         -v "$PWD/deploy/railway/validar-origenes.sh:/docker-entrypoint.d/15-validar-origenes.sh:ro" \
         -v "$HTML:/usr/share/nginx/html:ro" nginx:alpine >/dev/null
     sleep 3
