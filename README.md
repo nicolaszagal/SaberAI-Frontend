@@ -11,7 +11,7 @@ Este repositorio es solo la interfaz. La instalación, la ejecución y el manual
 - `MANUAL_USUARIO.md`: uso de la interfaz, con capturas.
 - `GUIA_DESARROLLO.md`: pruebas, arquitectura y convenciones (incluye Playwright).
 
-La interfaz habla solo con Fog (la API del backend). Su dirección sale de `EXPO_PUBLIC_FOG_URL` (`http://localhost:8001` por defecto, ver `src/infrastructure/config.ts`).
+La interfaz habla solo con Fog (la API del backend). Su dirección es una configuración de ejecución: el campo **Nodo Fog** del login (`http://localhost:8001` por defecto), con el botón **Probar conexión**; el navegador la recuerda en `localStorage`. Se aceptan `http://localhost`, `http://127.0.0.1` o `https://...` (ver `src/infrastructure/config.ts`). `EXPO_PUBLIC_FOG_URL` solo cambia el valor inicial en desarrollo y pruebas.
 
 ## Comandos
 

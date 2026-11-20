@@ -1,0 +1,47 @@
+# Frontend estático para Railway (DEPLOY11). Solo sirve el build de Expo: no hay /api ni reenviadores.
+# Las variables ${...} las sustituye la imagen nginx al arrancar (envsubst sobre /etc/nginx/templates);
+# $nginx_var queda intacto porque no está definida en el entorno.
+
+server_tokens off;
+
+server {
+    listen ${PORT};
+    listen [::]:${PORT};
+    server_name _;
+
+    # Cabeceras de seguridad (a nivel de server: no usar add_header dentro de location,
+    # porque anularía las heredadas).
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    # connect-src: el propio origen, el Fog local del usuario (loopback, cualquier puerto) y, solo si el
+    # despliegue los declara en FOG_ORIGENES_EXTRA, orígenes https:// concretos. Sin comodín https:.
+    #  - media-src blob: el reproductor del clip usa URL.createObjectURL (blob:).
+    #  - style-src 'unsafe-inline': react-native-web inyecta <style> en tiempo de ejecución.
+    #  - script-src: no hace falta 'unsafe-inline' (el export carga un único .js externo).
+    add_header Content-Security-Policy "default-src 'self'; connect-src 'self' http://localhost:* http://127.0.0.1:* ${FOG_ORIGENES_EXTRA}; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Permissions-Policy "camera=(), microphone=()" always;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Healthcheck de Railway: propio del contenedor.
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 'ok';
+    }
+
+    location = /index.html {
+        expires -1;
+    }
+
+    # Los archivos de /_expo/ llevan hash en el nombre.
+    location /_expo/ {
+        expires 30d;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

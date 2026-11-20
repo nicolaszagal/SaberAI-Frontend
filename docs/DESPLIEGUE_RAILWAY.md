@@ -1,3 +1,5 @@
+> **DEPLOY11 (20/11/2026): la imagen vigente es la estática** (`deploy/railway/Dockerfile.estatico` + `nginx.estatico.conf.template`): solo sirve el build de Expo, sin `/api`, sin reenviador y sin Tailscale. El navegador de cada usuario habla con su propio Fog (`http://localhost:<puerto>` o `https://...`), que se escribe en el login. La CSP permite `connect-src 'self' http://localhost:* http://127.0.0.1:*` más los orígenes `https://` de `FOG_ORIGENES_EXTRA` (validados al arrancar; sin comodín). Variables y verificación: `backend/docs/manuales/DESPLIEGUE_REMOTO.md`. Lo que sigue describe la imagen con proxy de DEPLOY06/DEPLOY09, **deprecada** y pendiente de retirarse de `main` (con la aprobación del autor).
+
 # Despliegue del frontend en Railway (DEPLOY06)
 
 Un único contenedor nginx sirve el build estático de Expo en `/` y reenvía `/api/` al Fog

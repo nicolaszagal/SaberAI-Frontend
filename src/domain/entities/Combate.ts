@@ -41,9 +41,11 @@ export interface ConfigCombateInput {
 
 export type EstadoComponente = 'ok' | 'error';
 
+/** `/health` informa `redis` (transporte local) o `cloud` (Cloud por HTTP, DEPLOY11), no los dos. */
 export interface HealthResponse {
   fog: EstadoComponente;
-  redis: EstadoComponente;
+  redis?: EstadoComponente;
+  cloud?: EstadoComponente;
   postgres: EstadoComponente;
 }
 

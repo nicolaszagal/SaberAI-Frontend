@@ -1,4 +1,4 @@
-import { FOG_BASE_URL } from '../config';
+import { getNodoFog, opcionesRedLocal, pistaRedLocal } from '../config';
 import { fogFetch } from './fogFetch';
 
 /** Fallo de login con el mensaje listo para mostrar al usuario. */
@@ -25,14 +25,16 @@ export class LoginError extends Error {
  */
 export async function login(usuario: string, password: string): Promise<string> {
   let res: Response;
+  const base = getNodoFog();
   try {
-    res = await fetch(`${FOG_BASE_URL}/auth/login`, {
+    res = await fetch(`${base}/auth/login`, {
+      ...opcionesRedLocal(base),
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ usuario, password }),
     });
   } catch {
-    throw new LoginError('No se pudo conectar con el servidor.', null);
+    throw new LoginError(`No se pudo conectar con el servidor.${pistaRedLocal(base)}`, null);
   }
   if (res.status === 401) throw new LoginError('Usuario o contraseña incorrectos.', 401);
   if (res.status === 429) {
