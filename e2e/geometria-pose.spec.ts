@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import {
-  ARISTAS_COCO, LARGO_ESTELA, anclaEtiqueta, brazoArmado, estelaDe, indiceTocado, puntoVisible,
+  ARISTAS_COCO, LARGO_ESTELA, anclaEtiqueta, brazoArmado, encuadreDeClip, estelaDe, indiceTocado, ladoExterior, puntoVisible,
   puntosDelFrame, segmentosBrazo, tiempoRelativo, tramosIncompletos,
 } from '../src/application/pose/geometriaPose';
 import type { PoseTirador, VistaPose } from '../src/domain/entities/Pose';
@@ -78,4 +78,63 @@ test('tramosIncompletos agrupa frames consecutivos con algún tirador sin detect
 test('anclaEtiqueta usa el punto visible más alto y ninguno si no hay', () => {
   expect(anclaEtiqueta([null, null])).toBeNull();
   expect(anclaEtiqueta([{ x: 10, y: 50 }, { x: 30, y: 20 }])).toEqual({ x: 20, y: 20 });
+});
+
+/** Pose sintética de dos tiradores con keypoints en posiciones dadas (todos los keypoints del frame en un punto). */
+function poseCon(a: PoseTirador, b: PoseTirador, n: number, over: Partial<VistaPose> = {}): VistaPose {
+  return {
+    revisionId: 'r', fps: 30, frameW: 1920, frameH: 1080, frameInicio: 0, frameTocado: 0, nFrames: n,
+    confMinKeypoint: 0.5, tiradores: { A: a, B: b }, motivo: null, ...over,
+  };
+}
+const enPunto = (n: number, x: (f: number) => number, y: (f: number) => number, detectado: (f: number) => boolean = () => true, conf = 0.9): PoseTirador => ({
+  color: 'ROJ', brazo: 'diestro',
+  xy: Array.from({ length: n }, (_, f) => Array.from({ length: 17 }, () => [x(f), y(f)])),
+  conf: Array.from({ length: n }, () => Array.from({ length: 17 }, () => conf)),
+  detectado: Array.from({ length: n }, (_, f) => detectado(f)), anguloCodo: Array.from({ length: n }, () => null),
+});
+
+test('encuadreDeClip: caja de los dos tiradores en todos los frames más 8 % por lado', () => {
+  // A recorre x 100→200, y 300; B recorre x 500→700, y 400→600.
+  const p = poseCon(enPunto(3, f => 100 + f * 50, () => 300), enPunto(3, f => 500 + f * 100, f => 400 + f * 100), 3);
+  const e = encuadreDeClip(p);
+  const [x0, x1, y0, y1] = [100, 700, 300, 600];
+  expect(e.x).toBeCloseTo(x0 - 0.08 * (x1 - x0));
+  expect(e.y).toBeCloseTo(y0 - 0.08 * (y1 - y0));
+  expect(e.w).toBeCloseTo(1.16 * (x1 - x0));
+  expect(e.h).toBeCloseTo(1.16 * (y1 - y0));
+});
+
+test('encuadreDeClip: ignora frames no detectados y keypoints bajo conf_min (no se dibujan)', () => {
+  const lejos = enPunto(3, f => (f === 2 ? 5000 : 100), () => 100, f => f !== 2);
+  const bajo = enPunto(3, f => (f === 1 ? 9000 : 300), () => 300, () => true, 0.1);
+  const p = poseCon(lejos, { ...bajo, color: 'VER' }, 3);
+  // B tiene conf 0.1 en todo: nada válido. A solo vale en los frames 0 y 1, siempre en (100, 100).
+  const e = encuadreDeClip(p);
+  expect(e.x + e.w).toBeLessThan(1000);
+  expect(e.w).toBeCloseTo(1.16); // caja degenerada: ancho mínimo de 1 px
+});
+
+test('encuadreDeClip: sin tiradores o sin puntos válidos devuelve el frame completo', () => {
+  const completo = { x: 0, y: 0, w: 1920, h: 1080 };
+  expect(encuadreDeClip({ ...poseCon(enPunto(1, () => 0, () => 0), enPunto(1, () => 0, () => 0), 1), tiradores: null })).toEqual(completo);
+  const nada = enPunto(2, () => 10, () => 10, () => false);
+  expect(encuadreDeClip(poseCon(nada, nada, 2))).toEqual(completo);
+});
+
+test('encuadreDeClip: es el mismo para cualquier frame (depende solo del clip)', () => {
+  const p = poseCon(enPunto(4, f => f * 10, () => 200), enPunto(4, f => 800 - f * 10, () => 500), 4);
+  expect(encuadreDeClip(p)).toEqual(encuadreDeClip({ ...p }));
+});
+
+test('ladoExterior: el codo a la derecha del torso da 1, a la izquierda -1', () => {
+  const pts = (codoX: number) => {
+    const v: (null | { x: number; y: number })[] = Array.from({ length: 17 }, () => null);
+    for (const i of [5, 6, 11, 12]) v[i] = { x: 100, y: 100 };
+    v[8] = { x: codoX, y: 120 };
+    return v;
+  };
+  expect(ladoExterior(pts(160), 8)).toBe(1);
+  expect(ladoExterior(pts(40), 8)).toBe(-1);
+  expect(ladoExterior(Array.from({ length: 17 }, () => null), 8)).toBe(1); // sin codo visible: valor por defecto
 });

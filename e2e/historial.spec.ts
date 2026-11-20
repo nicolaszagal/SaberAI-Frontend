@@ -39,9 +39,9 @@ test('lista las revisiones del evento activo con hora, sugerencia, confianza, de
 
   const filas = page.getByTestId('revision-row');
   await expect(filas).toHaveCount(5);
-  await expect(filas.nth(0)).toContainText('ATAQUE · A');
+  await expect(filas.nth(0)).toContainText('ATAQUE · ROJ');
   await expect(filas.nth(0)).toContainText('74%');
-  await expect(filas.nth(0)).toContainText('Mantiene  ·  ATAQUE · A');
+  await expect(filas.nth(0)).toContainText('Mantiene  ·  ATAQUE · ROJ');
   await expect(filas.nth(0)).toContainText('Coincide');
   await expect(filas.nth(1)).toContainText('Difiere');
   await expect(filas.nth(2)).toContainText('Anula');
@@ -68,17 +68,20 @@ test('al seleccionar una fila muestra el detalle y al repetir lo oculta', async 
   await configurarCombate(page);
   await page.getByTestId('nav-history').click();
   await expect(page.getByTestId('revision-detalle')).toHaveCount(0);
+  await expect(page.getByTestId('revision-row')).toHaveAttribute('aria-expanded', 'false');
 
   await page.getByTestId('revision-row').click();
+  await expect(page.getByTestId('revision-row')).toHaveAttribute('aria-expanded', 'true');
   const d = page.getByTestId('revision-detalle');
-  await expect(d).toContainText('ATAQUE · A · Tirador A · ROJ · 74%');
-  await expect(page.getByTestId('prob-ContrattackA')).toHaveText('CONTRAATAQUE · A: 16%');
-  await expect(d).toContainText('Cambia  ·  RIPOSTE · B');
+  await expect(d).toContainText('ATAQUE · ROJ · 74%');
+  await expect(page.getByTestId('prob-ContrattackA')).toHaveText('CONTRAATAQUE · ROJ: 16%');
+  await expect(d).toContainText('Cambia  ·  RIPOSTE · VER');
   await expect(d).toContainText('Registro n.º 7');
   await expect(d).toContainText('abc123hash');
 
   await page.getByTestId('revision-row').click();
   await expect(d).toHaveCount(0);
+  await expect(page.getByTestId('revision-row')).toHaveAttribute('aria-expanded', 'false');
 });
 
 test('el detalle de una revisión sin sugerencia muestra el motivo', async ({ page }) => {

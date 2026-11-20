@@ -55,7 +55,7 @@ test.describe('contraste AA · etiquetas del modal de trazos sobre fondo negro',
     expect(FONDO_TRAZOS).toBe('#000000');
   });
   for (const [nombre, color] of [
-    ['A · ROJ', colorTrazo('ROJ')], ['B · VER', colorTrazo('VER')],
+    ['ROJ', colorTrazo('ROJ')], ['VER', colorTrazo('VER')],
     ['texto', DARK_THEME.text], ['texto atenuado', DARK_THEME.textMuted],
   ] as const) {
     test(`${nombre} sobre el lienzo`, () => {

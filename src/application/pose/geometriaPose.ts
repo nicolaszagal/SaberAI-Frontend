@@ -173,3 +173,66 @@ export function anclaEtiqueta(puntos: (Punto | null)[]): Punto | null {
   const x = visibles.reduce((s, p) => s + p.x, 0) / visibles.length;
   return { x, y: Math.min(...visibles.map(p => p.y)) };
 }
+
+/** Margen del encuadre sobre la caja de los tiradores, como fracción de su ancho y de su alto (a cada lado). */
+export const MARGEN_ENCUADRE = 0.08;
+
+/** Rectángulo en píxeles del frame del clip. */
+export interface Encuadre { x: number; y: number; w: number; h: number }
+
+/**
+ * Encuadre de los trazos para todo el clip: la caja que contiene a los dos tiradores en todos los
+ * frames válidos (`detectado` y keypoint con `conf >= confMinKeypoint`, los mismos que se dibujan) más
+ * un margen del 8 % por lado. Es una sola escala para todos los frames: no cambia de un frame a otro,
+ * así no se deforma el movimiento ni la distancia entre tiradores. Sin ningún punto válido (o sin
+ * tiradores) devuelve el frame completo.
+ *
+ * Args:
+ *   pose: pose de la revisión.
+ *
+ * Returns:
+ *   El rectángulo a usar como `viewBox`, en píxeles del frame.
+ */
+export function encuadreDeClip(pose: Pick<VistaPose, 'frameW' | 'frameH' | 'nFrames' | 'confMinKeypoint' | 'tiradores'>): Encuadre {
+  const completo = { x: 0, y: 0, w: pose.frameW, h: pose.frameH };
+  if (!pose.tiradores) return completo;
+  let x0 = Infinity; let y0 = Infinity; let x1 = -Infinity; let y1 = -Infinity;
+  for (const lado of ['A', 'B'] as const) {
+    const t = pose.tiradores[lado];
+    for (let f = 0; f < pose.nFrames; f++) {
+      for (const p of puntosDelFrame(t, f, pose.confMinKeypoint)) {
+        if (!p) continue;
+        x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x);
+        y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y);
+      }
+    }
+  }
+  if (!Number.isFinite(x0)) return completo;
+  // Un clip degenerado (todos los puntos iguales) no debe dar una caja de ancho o alto cero.
+  const w = Math.max(x1 - x0, 1); const h = Math.max(y1 - y0, 1);
+  return { x: x0 - w * MARGEN_ENCUADRE, y: y0 - h * MARGEN_ENCUADRE, w: w * (1 + 2 * MARGEN_ENCUADRE), h: h * (1 + 2 * MARGEN_ENCUADRE) };
+}
+
+/** Hombros y caderas (COCO-17): el torso, para saber hacia dónde queda "afuera del cuerpo". */
+const TORSO = [5, 6, 11, 12] as const;
+
+/**
+ * Lado hacia el que se escribe el ángulo del codo: hacia afuera del cuerpo, del lado del brazo
+ * armado. Se compara el codo con el centro del torso (o, sin torso visible, con el de todos los
+ * puntos visibles).
+ *
+ * Args:
+ *   puntos: keypoints visibles del frame (null donde no se dibujan).
+ *   codo: índice del codo del brazo armado.
+ *
+ * Returns:
+ *   1 si el codo queda a la derecha del cuerpo en pantalla, -1 si a la izquierda.
+ */
+export function ladoExterior(puntos: (Punto | null)[], codo: number): 1 | -1 {
+  const e = puntos[codo];
+  if (!e) return 1;
+  const torso = TORSO.map(i => puntos[i]).filter((p): p is Punto => p !== null);
+  const base = torso.length > 0 ? torso : puntos.filter((p): p is Punto => p !== null);
+  const cx = base.reduce((s, p) => s + p.x, 0) / base.length;
+  return e.x >= cx ? 1 : -1;
+}

@@ -21,7 +21,7 @@ export function nombreAccion(backendAction: string): string {
   return ACTION_NAMES[backendAction] ?? backendAction;
 }
 
-/** Tirador atribuido ("A · ROJ" / "B · VER") a partir del sufijo de la clase del modelo. */
+/** Tirador atribuido (ROJ o VER) a partir del sufijo de la clase del modelo. */
 export function tiradorDeClase(backendAction: string): FencerColor {
   return backendAction.endsWith('B') ? 'VER' : 'ROJ';
 }

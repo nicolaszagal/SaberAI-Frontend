@@ -69,11 +69,11 @@ test.describe('eventos: mueven el cursor en el lugar, sin cerrar ni abrir nada',
     await conRevision(page);
     await page.keyboard.press('j');
     const eventos = page.getByTestId('razonamiento-evento');
-    await eventos.nth(0).click(); // A: frame 7
+    await eventos.nth(1).click(); // ROJ: frame 7
     await expect(frame(page)).toContainText('Frame 7 de 39');
     await expect(vista(page)).toBeVisible();
     await expect(page.getByTestId('razonamiento-estado')).toBeVisible();
-    await eventos.nth(1).click(); // B: frame 11
+    await eventos.nth(2).click(); // VER: frame 11
     await expect(frame(page)).toContainText('Frame 11 de 39');
     await expect(vista(page)).toHaveCount(1);
     await expect(page.getByTestId('razonamiento-estado')).toBeVisible();
@@ -88,18 +88,18 @@ test.describe('eventos: mueven el cursor en el lugar, sin cerrar ni abrir nada',
     for (const l of [eventos, marcas]) await expect(l.locator('visible=true')).toHaveCount(3);
 
     // lista → barra
-    await eventos.nth(1).click();
-    await expect(eventos.nth(1)).toHaveAttribute('aria-pressed', 'true');
-    await expect(marcas.nth(1)).toHaveAttribute('aria-pressed', 'true');
-    await expect(marcas.nth(0)).toHaveAttribute('aria-pressed', 'false');
-    await expect(eventos.nth(1)).toContainText('Mostrado en los trazos');
-    await expect(eventos.nth(0)).toContainText('Ver en trazos');
+    await eventos.nth(2).click();
+    await expect(eventos.nth(2)).toHaveAttribute('aria-pressed', 'true');
+    await expect(marcas.nth(2)).toHaveAttribute('aria-pressed', 'true');
+    await expect(marcas.nth(1)).toHaveAttribute('aria-pressed', 'false');
+    await expect(eventos.nth(2)).toContainText('Mostrado en los trazos');
+    await expect(eventos.nth(1)).toContainText('Ver en trazos');
 
     // barra → lista, y el cursor va al frame de la marca
-    await marcas.nth(0).click();
-    await expect(eventos.nth(0)).toHaveAttribute('aria-pressed', 'true');
-    await expect(eventos.nth(1)).toHaveAttribute('aria-pressed', 'false');
-    await expect(marcas.nth(0)).toHaveAttribute('aria-pressed', 'true');
+    await marcas.nth(1).click();
+    await expect(eventos.nth(1)).toHaveAttribute('aria-pressed', 'true');
+    await expect(eventos.nth(2)).toHaveAttribute('aria-pressed', 'false');
+    await expect(marcas.nth(1)).toHaveAttribute('aria-pressed', 'true');
     await expect(frame(page)).toContainText('Frame 7 de 39');
     await expect(vista(page)).toBeVisible();
   });
@@ -107,17 +107,17 @@ test.describe('eventos: mueven el cursor en el lugar, sin cerrar ni abrir nada',
   test('el cursor queda sobre la marca del evento elegido', async ({ page }) => {
     await conRevision(page);
     await page.keyboard.press('i');
-    await page.getByTestId('razonamiento-evento').nth(1).click();
+    await page.getByTestId('razonamiento-evento').nth(2).click();
     await expect(frame(page)).toContainText('Frame 11 de 39');
     const cursor = (await page.getByTestId('cursor-trazos').boundingBox())!;
-    const marca = (await page.getByTestId('marca-evento').nth(1).boundingBox())!;
+    const marca = (await page.getByTestId('marca-evento').nth(2).boundingBox())!;
     expect(Math.abs(cursor.x + cursor.width / 2 - (marca.x + marca.width / 2))).toBeLessThan(4);
   });
 
   test('volver a pulsar un evento después de mover el cursor a mano lo devuelve a su frame', async ({ page }) => {
     await conRevision(page);
     await page.keyboard.press('i');
-    const evento = page.getByTestId('razonamiento-evento').nth(1);
+    const evento = page.getByTestId('razonamiento-evento').nth(2);
     await evento.click();
     await expect(frame(page)).toContainText('Frame 11 de 39');
     await page.keyboard.press('.');
@@ -247,11 +247,11 @@ test.describe('un solo cierre y el foco vuelve al Paso 3', () => {
   test('tras cerrar, I vuelve a abrirla con los trazos en el tocado', async ({ page }) => {
     await conRevision(page);
     await page.keyboard.press('i');
-    await page.getByTestId('razonamiento-evento').nth(1).click();
+    await page.getByTestId('razonamiento-evento').nth(2).click();
     await page.keyboard.press('Escape');
     await page.keyboard.press('i');
     await expect(frame(page)).toContainText('Frame 20 de 39');
-    await expect(page.getByTestId('razonamiento-evento').nth(1)).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.getByTestId('razonamiento-evento').nth(2)).toHaveAttribute('aria-pressed', 'false');
   });
 });
 
@@ -264,7 +264,7 @@ test.describe('la decisión es del árbitro (RNF-01, P-008)', () => {
     await page.getByTestId('clase-AttackB').click();
     const resumen = page.getByTestId('resumen-decision');
     const antes = (await resumen.textContent())!;
-    expect(antes).toContain('Cambia la decisión en pista · clase final: Ataque · B · VER');
+    expect(antes).toContain('Cambia la decisión en pista · clase final: Ataque · VER');
 
     for (const [abrir, cerrar] of [['i', 'esc'], ['t', 'boton'], ['j', 'esc']] as const) {
       await page.keyboard.press(abrir);
@@ -323,7 +323,7 @@ test.describe('disposición', () => {
       expect(r.y).toBeGreaterThanOrEqual(t.y + t.height - 2);
       expect(Math.abs(t.x - r.x)).toBeLessThan(2);
       await expect(page.locator('[aria-modal="true"]')).toHaveCount(1);
-      await page.getByTestId('razonamiento-evento').nth(1).click();
+      await page.getByTestId('razonamiento-evento').nth(2).click();
       await expect(frame(page)).toContainText('Frame 11 de 39');
       await expect(vista(page)).toHaveCount(1);
     });
@@ -395,7 +395,7 @@ test.describe('historial (CU-12): la misma vista', () => {
     await expect(vista(page)).toBeVisible();
     await expect(page.getByTestId('trazos-lienzo')).toBeVisible();
     await expect(page.getByTestId('razonamiento-estado')).toHaveText('Respaldada por la pose');
-    await page.getByTestId('razonamiento-evento').nth(0).click();
+    await page.getByTestId('razonamiento-evento').nth(1).click();
     await expect(frame(page)).toContainText('Frame 7 de 39');
     await page.keyboard.press('Escape');
     await page.keyboard.press('i');
@@ -417,14 +417,293 @@ test.describe('historial (CU-12): la misma vista', () => {
   });
 });
 
+test.describe('UX01b · eventos en orden cronológico', () => {
+  /** Orden esperado, calculado aparte del código de la app a partir de la fixture del Fog. */
+  function ordenEsperado(estado: EstadoFixtureRazonamiento) {
+    const fx = leerRazonamiento(estado);
+    return fx.eventos!
+      .filter(e => e.tipo !== 'tocado')
+      .sort((a, b) => Number(!!b.censurado_inicio) - Number(!!a.censurado_inicio) || a.t_ms - b.t_ms)
+      .map(e => (e.tipo === 'inicio_desplazamiento' ? 'acercamiento' : e.tirador === 'A' ? 'ROJ' : 'VER'));
+  }
+  const rotuloDeFila = (t: string) => (t.includes('acercamiento') ? 'acercamiento' : t.startsWith('ROJ') ? 'ROJ' : 'VER');
+
+  for (const estado of ['respaldada', 'discordante', 'no_concluyente', 'censurado'] as const) {
+    test(`${estado}: la lista va del evento más antiguo al más reciente y la barra sigue el mismo orden`, async ({ page }) => {
+      await conRevision(page, { razonamiento: raz(estado) });
+      await page.keyboard.press('i');
+      const filas = await page.getByTestId('razonamiento-evento').allInnerTexts();
+      expect(filas.map(rotuloDeFila)).toEqual(ordenEsperado(estado));
+      // Las marcas con instante (no censuradas) salen en ese mismo orden.
+      const fx = leerRazonamiento(estado);
+      const sinCensurar = fx.eventos!.filter(e => e.tipo !== 'tocado' && !e.censurado_inicio)
+        .sort((a, b) => a.t_ms - b.t_ms)
+        .map(e => (e.tipo === 'inicio_desplazamiento' ? '↔' : e.tirador === 'A' ? 'ROJ' : 'VER'));
+      await expect(page.getByTestId('etiqueta-evento')).toHaveText(sinCensurar);
+    });
+  }
+
+  test('respaldada: -0,47 s, -0,43 s y -0,30 s, en ese orden', async ({ page }) => {
+    await conRevision(page);
+    await page.keyboard.press('i');
+    await expect(page.getByTestId('razonamiento-evento-tiempo')).toHaveText(['-0,47 s del tocado', '-0,43 s del tocado', '-0,30 s del tocado']);
+  });
+
+  test('pulsar una fila lleva a su frame aunque el orden haya cambiado', async ({ page }) => {
+    await conRevision(page);
+    await page.keyboard.press('i');
+    const filas = page.getByTestId('razonamiento-evento');
+    await filas.nth(0).click(); // el acercamiento: frame 6
+    await expect(frame(page)).toContainText('Frame 6 de 39');
+    await expect(page.getByTestId('marca-evento').nth(0)).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
+test.describe('UX01b · el tirador se nombra solo por el color', () => {
+  // "A ·" o "B ·" como rótulo suelto (no el final de otra palabra): lo que mostraba "A · ROJ" y "B · VER".
+  const ROTULO_VIEJO = /(^|[^\p{L}\d])[AB]\s·/u;
+
+  /** Todo el texto visible del DOM más los `aria-label`, para no dejar rótulos viejos ocultos. */
+  async function textoDelDom(page: Page): Promise<string> {
+    return page.evaluate(() => {
+      const labels = [...document.querySelectorAll('[aria-label]')].map(e => e.getAttribute('aria-label')).join('\n');
+      return `${document.body.textContent}\n${labels}`;
+    });
+  }
+
+  test('Revisión VAR (sugerencia, Paso 3 y resumen) y la vista abierta no muestran "A ·" ni "B ·"', async ({ page }) => {
+    await conRevision(page);
+    await page.getByTestId('modifica-si').click();
+    await page.getByTestId('clase-RiposteB').click();
+    await expect(page.getByTestId('resumen-decision')).toContainText('Riposte · VER');
+    expect(await textoDelDom(page)).not.toMatch(ROTULO_VIEJO);
+    await expect(page.getByTestId('fencer-label')).toHaveText('ROJ');
+    await expect(page.getByTestId('sugerencia-decision')).toContainText('Sugerencia del sistema: Ataque · ROJ');
+
+    await page.keyboard.press('i');
+    await expect(page.getByTestId('trazos-lienzo')).toBeVisible();
+    await page.getByTestId('razonamiento-evento').nth(1).click();
+    expect(await textoDelDom(page)).not.toMatch(ROTULO_VIEJO);
+    await expect(page.getByTestId('etiqueta-A')).toHaveText('ROJ');
+    await expect(page.getByTestId('etiqueta-B')).toHaveText('VER');
+    await expect(page.getByTestId('razonamiento-clase')).toHaveText('Ataque · ROJ');
+    await expect(page.getByTestId('seccion-razonamiento')).toContainText('ROJ · Inicio de extensión del brazo');
+    await expect(page.getByTestId('seccion-razonamiento')).toContainText('VER · Inicio de extensión del brazo');
+    await expect(page.getByTestId('leyenda-ventana')).toBeVisible();
+    await expect(page.getByTestId('vista-interpretacion')).not.toContainText('A/B');
+    await expect(page.getByTestId('vista-interpretacion')).toContainText('inicio de extensión del brazo');
+  });
+
+  test('las letras de la barra son ROJ y VER, cada una con su color', async ({ page }) => {
+    await conRevision(page);
+    await page.keyboard.press('i');
+    const etiquetas = page.getByTestId('etiqueta-evento');
+    await expect(etiquetas).toHaveText(['↔', 'ROJ', 'VER']);
+    const color = (i: number) => etiquetas.nth(i).evaluate(e => getComputedStyle(e).color);
+    expect(await color(1)).not.toBe(await color(2)); // ROJ y VER no comparten color
+  });
+
+  test('el Historial (fila, detalle y vista) tampoco los muestra', async ({ page }) => {
+    await mockApi(page, {
+      revisiones: [{ id: REVISION_ID, abierta_en: '2026-10-05T15:00:00Z', disponible: true, clase: 'AttackA', confianza: 0.9, decision: 'cambiar', clase_final: 'RiposteB' }],
+      detalles: { [REVISION_ID]: {
+        id: REVISION_ID, abierta_en: '2026-10-05T15:00:00Z', cerrada_en: null,
+        sugerencia: { disponible: true, motivo_no_disp: null, clase: 'AttackA', tirador: 'A', confianza: 0.9 },
+        probabilidades: { AttackA: 0.9, RiposteB: 0.1 }, decision: 'cambiar', clase_final: 'RiposteB',
+        registrado_en: '2026-10-05T15:01:00Z', auditoria_seq: 3, auditoria_hash: 'abc' } },
+    });
+    await configurarCombate(page);
+    await mockPose(page, POSE);
+    await mockRazonamiento(page, raz('respaldada'));
+    await page.getByTestId('nav-history').click();
+    await page.getByTestId('revision-row').click();
+    await expect(page.getByTestId('revision-detalle')).toContainText('ATAQUE · ROJ · 90%');
+    await expect(page.getByTestId('revision-row')).toContainText('RIPOSTE · VER');
+    expect(await textoDelDom(page)).not.toMatch(ROTULO_VIEJO);
+    await page.keyboard.press('i');
+    await expect(page.getByTestId('trazos-lienzo')).toBeVisible();
+    await expect(page.getByTestId('razonamiento-estado')).toBeVisible();
+    expect(await textoDelDom(page)).not.toMatch(ROTULO_VIEJO);
+  });
+
+  test('la expresión detecta el rótulo viejo y no se deja engañar por otras palabras', () => {
+    for (const malo of ['A · ROJ', 'B · VER', 'Ataque · A · ROJ', 'Tirador B · VER']) expect(malo).toMatch(ROTULO_VIEJO);
+    for (const bueno of ['ROJ', 'VER', 'Ataque · ROJ', 'RIPOSTE · VER', 'Contraataque · VER', 'ATAQUE · ROJ · 90%']) expect(bueno).not.toMatch(ROTULO_VIEJO);
+  });
+});
+
+test.describe('UX01b · criterio FIE sin repetir', () => {
+  test('respaldada: la frase ya cita t.101.2-4 y no se repite la línea de criterio', async ({ page }) => {
+    await conRevision(page);
+    await page.keyboard.press('i');
+    await expect(page.getByTestId('razonamiento-frases')).toContainText('t.101.2-4');
+    await expect(page.getByTestId('razonamiento-criterio')).toHaveCount(0);
+  });
+
+  test('discordante: ninguna frase nombra el artículo, así que la línea de criterio se muestra', async ({ page }) => {
+    await conRevision(page, { razonamiento: raz('discordante') });
+    await page.keyboard.press('i');
+    await expect(page.getByTestId('razonamiento-frases')).not.toContainText('t.101.2-4');
+    await expect(page.getByTestId('razonamiento-criterio')).toContainText('Criterio FIE de referencia: t.101.2-4');
+  });
+
+  test('las frases del Fog se muestran sin tocar en ambos casos', async ({ page }) => {
+    for (const estado of ['respaldada', 'discordante'] as const) {
+      await conRevision(page, { razonamiento: raz(estado) });
+      await page.keyboard.press('i');
+      await expect(page.getByTestId('razonamiento-frase')).toHaveText(leerRazonamiento(estado).frases!);
+      await page.reload();
+    }
+  });
+});
+
+test.describe('UX01b · esqueletos encuadrados con una sola escala', () => {
+  /** Rectángulo (en px de pantalla) que cubre los dos esqueletos, y el del SVG que los contiene. */
+  async function medidas(page: Page) {
+    return page.evaluate(() => {
+      const svg = document.querySelector('[data-testid="trazos-lienzo"]') as unknown as SVGSVGElement;
+      const s = svg.getBoundingClientRect();
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const id of ['esqueleto-A', 'esqueleto-B']) {
+        const g = document.querySelector(`[data-testid="${id}"]`);
+        if (!g) continue;
+        // Solo los keypoints y las aristas: las etiquetas y los ángulos van aparte.
+        g.querySelectorAll('circle').forEach(c => {
+          const b = c.getBoundingClientRect();
+          x0 = Math.min(x0, b.left); x1 = Math.max(x1, b.right); y0 = Math.min(y0, b.top); y1 = Math.max(y1, b.bottom);
+        });
+      }
+      return { svg: { x: s.left, y: s.top, w: s.width, h: s.height }, esq: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, viewBox: svg.getAttribute('viewBox') };
+    });
+  }
+
+  for (const [nombre, width, height] of [['ancha', 1280, 800], ['angosta', 600, 900]] as const) {
+    test.describe(`pantalla ${nombre}`, () => {
+      test.use({ viewport: { width, height } });
+
+      test('los esqueletos ocupan buena parte del lienzo y quedan dentro de él', async ({ page }) => {
+        await conRevision(page);
+        await page.keyboard.press('i');
+        await expect(page.getByTestId('esqueleto-A')).toHaveCount(1);
+        const m = await medidas(page);
+        const alto = m.esq.h / m.svg.h;
+        const ancho = m.esq.w / m.svg.w;
+        // Cuánto se acercó la escena frente a mostrar el frame completo (el encuadre anterior).
+        const [, , vw, vh] = m.viewBox!.split(' ').map(Number);
+        const zoom = Math.min(m.svg.w / vw, m.svg.h / vh) / Math.min(m.svg.w / POSE.body.frame_w, m.svg.h / POSE.body.frame_h);
+        console.log(`ENCUADRE ${nombre}: esqueletos = ${(alto * 100).toFixed(0)} % del alto y ${(ancho * 100).toFixed(0)} % del ancho del lienzo; antes ${(100 * alto / zoom).toFixed(0)} % y ${(100 * ancho / zoom).toFixed(0)} %; zoom ×${zoom.toFixed(2)}`);
+        expect(zoom).toBeGreaterThan(1.2); // la ganancia depende de cuánto se muevan los tiradores en el clip
+        expect(Math.max(alto, ancho)).toBeGreaterThan(0.45);
+        expect(m.esq.x).toBeGreaterThanOrEqual(m.svg.x);
+        expect(m.esq.x + m.esq.w).toBeLessThanOrEqual(m.svg.x + m.svg.w);
+        expect(m.esq.y).toBeGreaterThanOrEqual(m.svg.y);
+        expect(m.esq.y + m.esq.h).toBeLessThanOrEqual(m.svg.y + m.svg.h);
+      });
+    });
+  }
+
+  test('la escala es la misma en todos los frames: el viewBox no cambia al recorrer el clip', async ({ page }) => {
+    await conRevision(page);
+    await page.keyboard.press('i');
+    const vb = () => page.getByTestId('trazos-lienzo').getAttribute('viewBox');
+    const inicial = await vb();
+    for (let k = 0; k < 6; k++) await page.keyboard.press('.');
+    expect(await vb()).toBe(inicial);
+    for (let k = 0; k < 30; k++) await page.keyboard.press(',');
+    await expect(frame(page)).toContainText('Frame 0 de 39');
+    expect(await vb()).toBe(inicial);
+    await expect(page.getByTestId('trazos-lienzo')).toHaveAttribute('preserveAspectRatio', 'xMidYMid meet');
+  });
+
+  test('un keypoint no se mueve distinto en pantalla: la distancia entre tiradores se conserva', async ({ page }) => {
+    await conRevision(page);
+    await page.keyboard.press('i');
+    // Escala uniforme: el cociente entre píxeles de pantalla y unidades del viewBox es igual en x y en y.
+    const r = await page.evaluate(() => {
+      const svg = document.querySelector('[data-testid="trazos-lienzo"]') as unknown as SVGSVGElement;
+      const b = svg.getBoundingClientRect();
+      const m = svg.getScreenCTM()!;
+      return { a: m.a, d: m.d, w: b.width, h: b.height };
+    });
+    expect(Math.abs(r.a - r.d)).toBeLessThan(1e-6);
+  });
+});
+
+test.describe('UX01b · ángulo del codo fuera del cuerpo', () => {
+  /** Posiciones en unidades del viewBox (coordenadas locales del SVG). */
+  async function geometria(page: Page, lado: 'A' | 'B') {
+    const codoKp = POSE.body.tiradores![lado].brazo === 'zurdo' ? 7 : 8; // codo del brazo armado (WEAPON_KPT de Fog)
+    return page.evaluate(([l, codoKp]) => {
+      const q = (id: string) => document.querySelector(`[data-testid="${id}"]`) as unknown as SVGGraphicsElement | null;
+      const fondo = q(`fondo-angulo-${l}`) as unknown as SVGRectElement | null;
+      const texto = q(`angulo-${l}`);
+      const pts = [5, 6, 11, 12].map(kp => q(`kp-${l}-${kp}`)).filter(Boolean)
+        .map(c => ({ x: Number(c!.getAttribute('cx')), y: Number(c!.getAttribute('cy')) }));
+      const codos = [codoKp].map(kp => q(`kp-${l}-${kp}`)).filter(Boolean)
+        .map(c => ({ x: Number(c!.getAttribute('cx')), y: Number(c!.getAttribute('cy')) }));
+      if (!fondo || !texto) return null;
+      return {
+        fondo: { x: Number(fondo.getAttribute('x')), y: Number(fondo.getAttribute('y')), w: Number(fondo.getAttribute('width')), h: Number(fondo.getAttribute('height')),
+          relleno: fondo.getAttribute('fill'), opacidad: Number(fondo.getAttribute('fill-opacity')) },
+        texto: { x: Number(texto.getAttribute('x')), y: Number(texto.getAttribute('y')) },
+        torso: pts, codos,
+      };
+    }, [lado, codoKp] as const);
+  }
+
+  test('el ángulo va hacia afuera del cuerpo, del lado del codo, sobre un fondo semitransparente', async ({ page }) => {
+    await conRevision(page);
+    await page.keyboard.press('i');
+    for (const lado of ['A', 'B'] as const) {
+      const g = (await geometria(page, lado))!;
+      expect(g, `ángulo ${lado}`).not.toBeNull();
+      expect(g.fondo.relleno).toBe('#000000');
+      expect(g.fondo.opacidad).toBeGreaterThan(0);
+      expect(g.fondo.opacidad).toBeLessThan(1);
+      // El texto está dentro del fondo.
+      expect(g.texto.x).toBeGreaterThanOrEqual(g.fondo.x);
+      expect(g.texto.y).toBeGreaterThan(g.fondo.y);
+      expect(g.texto.y).toBeLessThan(g.fondo.y + g.fondo.h);
+      // Del lado del codo respecto del centro del torso, y sin entrar en la franja del torso en x.
+      const cx = g.torso.reduce((s, p) => s + p.x, 0) / g.torso.length;
+      const codo = g.codos.reduce((a, b) => (Math.abs(a.x - cx) >= Math.abs(b.x - cx) ? a : b));
+      const derecha = codo.x >= cx;
+      const borde = derecha ? g.fondo.x : g.fondo.x + g.fondo.w;
+      if (derecha) expect(borde).toBeGreaterThanOrEqual(Math.min(...g.codos.map(c => c.x)) - 1e-6);
+      else expect(borde).toBeLessThanOrEqual(Math.max(...g.codos.map(c => c.x)) + 1e-6);
+      const t0 = Math.min(...g.torso.map(p => p.x)); const t1 = Math.max(...g.torso.map(p => p.x));
+      const solapa = g.fondo.x < t1 && g.fondo.x + g.fondo.w > t0;
+      expect(solapa, `el fondo del ángulo ${lado} no debe cubrir el torso`).toBe(false);
+    }
+  });
+
+  test('en cada frame el ángulo sigue del lado exterior y su valor es el que envía el Fog', async ({ page }) => {
+    await conRevision(page);
+    await page.keyboard.press('i');
+    const esperado = (a: number) => `${a.toFixed(1).replace('.', ',')}°`;
+    for (let k = 0; k < 5; k++) {
+      const i = Number(/Frame (\d+) de/.exec(await frame(page).innerText())![1]);
+      for (const lado of ['A', 'B'] as const) {
+        const a = POSE.body.tiradores![lado].angulo_codo[i];
+        if (a == null) continue;
+        await expect(page.getByTestId(`angulo-${lado}`)).toHaveText(esperado(a));
+        const g = (await geometria(page, lado))!;
+        expect(g.fondo.opacidad).toBeLessThan(1);
+        expect(g.fondo.w).toBeGreaterThan(0);
+      }
+      await page.keyboard.press('.');
+    }
+  });
+});
+
 test.describe('medición para la memoria: ver los trazos del evento 1, del 2 y volver a decidir', () => {
   test('después: 4 interacciones (antes, en main: 6)', async ({ page }) => {
     await conRevision(page);
     const pasos: string[] = [];
     await page.keyboard.press('i'); pasos.push('I abre la vista');
-    await page.getByTestId('razonamiento-evento').nth(0).click(); pasos.push('clic evento 1');
+    await page.getByTestId('razonamiento-evento').nth(1).click(); pasos.push('clic evento 1');
     await expect(frame(page)).toContainText('Frame 7 de 39');
-    await page.getByTestId('razonamiento-evento').nth(1).click(); pasos.push('clic evento 2');
+    await page.getByTestId('razonamiento-evento').nth(2).click(); pasos.push('clic evento 2');
     await expect(frame(page)).toContainText('Frame 11 de 39');
     await page.keyboard.press('Escape'); pasos.push('Esc cierra');
     await expect(page.getByTestId('paso-decision')).toBeFocused(); // ya se puede decidir
@@ -441,7 +720,7 @@ test.describe('capturas para la memoria (CAPTURAS=1)', () => {
       await conRevision(page);
       await page.keyboard.press('i');
       await expect(page.getByTestId('trazos-lienzo')).toBeVisible();
-      await page.getByTestId('razonamiento-evento').nth(1).click();
+      await page.getByTestId('razonamiento-evento').nth(2).click();
       await expect(frame(page)).toContainText('Frame 11 de 39');
       await page.screenshot({ path: `docs/evidencia/ux/interpretacion-${nombre}-${width}x${height}.png` });
     });

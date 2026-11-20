@@ -91,8 +91,8 @@ test('el Historial muestra la decisión como Mantiene, Cambia y Anula', async ({
   await page.getByTestId('nav-history').click();
   const filas = page.getByTestId('revision-row');
   await expect(filas).toHaveCount(4);
-  await expect(filas.nth(0)).toContainText('Mantiene  ·  ATAQUE · A');
-  await expect(filas.nth(1)).toContainText('Cambia  ·  RIPOSTE · B');
+  await expect(filas.nth(0)).toContainText('Mantiene  ·  ATAQUE · ROJ');
+  await expect(filas.nth(1)).toContainText('Cambia  ·  RIPOSTE · VER');
   await expect(filas.nth(2)).toContainText('Anula');
   await expect(filas.nth(2)).not.toContainText('Anula  ·');
   await expect(filas.nth(3)).toContainText('Pendiente');

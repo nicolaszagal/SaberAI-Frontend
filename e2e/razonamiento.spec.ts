@@ -84,7 +84,10 @@ test.describe('estados', () => {
       await expect(page.getByTestId('razonamiento-estado')).toHaveText(INSIGNIA[estado]);
       // Las frases se muestran exactamente como llegan: sin reescribir ni completar.
       await expect(page.getByTestId('razonamiento-frase')).toHaveText(fx.frases!);
-      await expect(page.getByTestId('razonamiento-criterio')).toContainText(`Criterio FIE de referencia: ${fx.criterio_fie!.articulo}`);
+      // La línea del criterio solo sale si ninguna frase del Fog ya nombra el artículo.
+      const articulo = fx.criterio_fie!.articulo;
+      if (fx.frases!.some(f => f.includes(articulo))) await expect(page.getByTestId('razonamiento-criterio')).toHaveCount(0);
+      else await expect(page.getByTestId('razonamiento-criterio')).toContainText(`Criterio FIE de referencia: ${articulo}`);
       await expect(page.getByTestId('razonamiento-nota')).toHaveText(NOTA);
     });
   }
@@ -93,7 +96,8 @@ test.describe('estados', () => {
     await mockRazonamiento(page, respuesta('respaldada'));
     await conRevision(page);
     await abrir(page);
-    const ids = ['razonamiento-sugerencia', 'razonamiento-estado', 'razonamiento-frases', 'razonamiento-criterio', 'razonamiento-evento', 'razonamiento-nota'];
+    // Con la fixture respaldada la frase ya cita el artículo, así que no hay línea de criterio.
+    const ids = ['razonamiento-sugerencia', 'razonamiento-estado', 'razonamiento-frases', 'razonamiento-evento', 'razonamiento-nota'];
     const y = await Promise.all(ids.map(async id => (await page.getByTestId(id).first().boundingBox())!.y));
     expect([...y].sort((a, b) => a - b)).toEqual(y);
   });
@@ -102,7 +106,7 @@ test.describe('estados', () => {
     await mockRazonamiento(page, respuesta('respaldada'));
     await conRevision(page);
     await abrir(page);
-    await expect(page.getByTestId('razonamiento-clase')).toHaveText('Ataque · A · ROJ');
+    await expect(page.getByTestId('razonamiento-clase')).toHaveText('Ataque · ROJ');
     await expect(page.getByTestId('razonamiento-confianza')).toHaveText('74%');
   });
 
@@ -138,11 +142,12 @@ test.describe('eventos y trazos', () => {
     await conRevision(page);
     await abrir(page);
     const evento = page.getByTestId('razonamiento-evento');
-    await expect(evento).toHaveCount(3); // extensión A, extensión B y acercamiento; el tocado es la referencia
-    await expect(evento.nth(0)).toContainText('A · ROJ · Inicio de extensión del brazo');
-    await expect(evento.nth(0).getByTestId('razonamiento-evento-tiempo')).toHaveText('-0,43 s del tocado');
-    await expect(evento.nth(1)).toContainText('B · VER · Inicio de extensión del brazo');
-    await expect(evento.nth(2)).toContainText('Inicio del acercamiento (ambos tiradores)');
+    await expect(evento).toHaveCount(3); // acercamiento, extensión ROJ y extensión VER; el tocado es la referencia
+    // Orden cronológico respecto del tocado: -0,47 s, -0,43 s, -0,30 s.
+    await expect(evento.nth(0)).toContainText('Inicio del acercamiento (ambos tiradores)');
+    await expect(evento.nth(1)).toContainText('ROJ · Inicio de extensión del brazo');
+    await expect(evento.nth(1).getByTestId('razonamiento-evento-tiempo')).toHaveText('-0,43 s del tocado');
+    await expect(evento.nth(2)).toContainText('VER · Inicio de extensión del brazo');
   });
 
   test('pulsar un evento lleva el cursor de los trazos a su frame, en el lugar', async ({ page }) => {
@@ -150,7 +155,7 @@ test.describe('eventos y trazos', () => {
     await mockPose(page, POSE);
     await conRevision(page);
     await abrir(page);
-    await page.getByTestId('razonamiento-evento').nth(1).click(); // B: frame 11
+    await page.getByTestId('razonamiento-evento').nth(2).click(); // VER: frame 11
     await expect(page.getByTestId('vista-interpretacion')).toBeVisible();
     await expect(page.getByTestId('razonamiento-estado')).toBeVisible(); // el razonamiento sigue a la vista
     await expect(page.getByTestId('trazos-frame')).toContainText('Frame 11 de 39');
@@ -163,9 +168,11 @@ test.describe('eventos y trazos', () => {
     await conRevision(page);
     await abrir(page);
     const evento = page.getByTestId('razonamiento-evento');
+    // El censurado al inicio va primero (ROJ), luego el acercamiento censurado y al final VER, que sí tiene instante.
     await expect(evento.nth(0).getByTestId('razonamiento-evento-tiempo')).toHaveText('antes del inicio del clip');
     await expect(evento.nth(0)).not.toContainText('del tocado');
-    await expect(evento.nth(2).getByTestId('razonamiento-evento-tiempo')).toHaveText('antes del inicio del clip'); // acercamiento
+    await expect(evento.nth(1).getByTestId('razonamiento-evento-tiempo')).toHaveText('antes del inicio del clip'); // acercamiento
+    await expect(evento.nth(2)).toContainText('del tocado');
     await evento.nth(0).click();
     await expect(page.getByTestId('trazos-frame')).toContainText('Frame 0 de 39');
   });
@@ -178,7 +185,7 @@ test.describe('eventos y trazos', () => {
     await abrir(page);
     await expect(page.getByTestId('ventana-atencion')).toBeVisible();
     await expect(page.getByTestId('marca-evento')).toHaveCount(3);
-    await expect(page.getByTestId('etiqueta-evento')).toHaveText(['A', 'B', '↔']);
+    await expect(page.getByTestId('etiqueta-evento')).toHaveText(['↔', 'ROJ', 'VER']); // en orden cronológico
     await expect(page.getByTestId('leyenda-ventana')).toContainText('Ventana de atención del modelo');
   });
 
@@ -188,7 +195,7 @@ test.describe('eventos y trazos', () => {
     await conRevision(page);
     await abrir(page);
     await expect(page.getByTestId('marca-evento')).toHaveCount(1); // solo B
-    await expect(page.getByTestId('etiqueta-evento')).toHaveText(['B']);
+    await expect(page.getByTestId('etiqueta-evento')).toHaveText(['VER']);
   });
 
 });
@@ -240,7 +247,7 @@ test.describe('la decisión es del árbitro (RNF-01, P-008)', () => {
     await abrir(page);
     await page.keyboard.press('a'); // "Anular la acción"
     await page.keyboard.press('Escape');
-    await expect(page.getByTestId('veredicto-anular')).not.toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('veredicto-anular')).toHaveAttribute('aria-pressed', 'false');
     await expect(page.getByTestId('resumen-decision')).toHaveCount(0);
   });
 
@@ -304,7 +311,7 @@ test.describe('historial (CU-12)', () => {
     await page.getByTestId('ver-interpretacion-btn').click();
     await expect(page.getByTestId('razonamiento-estado')).toHaveText(INSIGNIA.respaldada);
     expect(raz.peticiones()).toBe(1);
-    await page.getByTestId('razonamiento-evento').first().click();
-    await expect(page.getByTestId('trazos-frame')).toContainText('Frame 7 de 39'); // A: frame 7
+    await page.getByTestId('razonamiento-evento').nth(1).click();
+    await expect(page.getByTestId('trazos-frame')).toContainText('Frame 7 de 39'); // ROJ: frame 7
   });
 });

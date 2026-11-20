@@ -53,14 +53,14 @@ for (const tema of ['claro', 'oscuro'] as const) {
   }
 }
 
-test('los tiradores se rotulan con texto: "A · ROJ" y "B · VER"', async ({ page }) => {
+test('los tiradores se rotulan solo con el nombre del color: "ROJ" y "VER"', async ({ page }) => {
   await mockApi(page);
   await page.goto('/live');
-  await expect(page.getByTestId('marcar-luz-a-btn')).toContainText('A · ROJ');
-  await expect(page.getByTestId('marcar-luz-b-btn')).toContainText('B · VER');
+  await expect(page.getByTestId('marcar-luz-a-btn')).toContainText('ROJ');
+  await expect(page.getByTestId('marcar-luz-b-btn')).toContainText('VER');
   await page.goto('/config');
-  await expect(page.getByText('Tirador A · ROJ')).toBeVisible();
-  await expect(page.getByText('Tirador B · VER')).toBeVisible();
+  await expect(page.getByText('Tirador ROJ')).toBeVisible();
+  await expect(page.getByText('Tirador VER')).toBeVisible();
 });
 
 test('el resultado rotula el lado con texto y la salida como sugerencia', async ({ page }) => {
@@ -70,8 +70,28 @@ test('el resultado rotula el lado con texto y la salida como sugerencia', async 
   await page.getByTestId('nav-live').click();
   await analizarClip(page);
   await expect(page.getByTestId('paso-sugerencia')).toContainText('Sugerencia del sistema');
-  await expect(page.getByTestId('paso-sugerencia')).toContainText('B · VER');
+  await expect(page.getByTestId('paso-sugerencia')).toContainText('VER');
   await expect(page.getByTestId('paso-sugerencia')).not.toContainText('PUNTO PARA');
+});
+
+test('los botones de elección exponen su estado al DOM con aria-pressed (true elegido, false no)', async ({ page }) => {
+  await mockClip(page);
+  await mockApi(page);
+  await configurarCombate(page);
+  await page.getByTestId('nav-live').click();
+  await analizarClip(page);
+  const si = page.getByTestId('modifica-si');
+  const no = page.getByTestId('modifica-no');
+  await expect(si).toHaveAttribute('aria-pressed', 'false');
+  await expect(no).toHaveAttribute('aria-pressed', 'false');
+  await si.click();
+  await expect(si).toHaveAttribute('aria-pressed', 'true');
+  await expect(no).toHaveAttribute('aria-pressed', 'false');
+  await page.getByTestId('clase-AttackB').click();
+  await expect(page.getByTestId('clase-AttackB')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('clase-AttackA')).toHaveAttribute('aria-pressed', 'false');
+  // Un botón que no es de elección no declara aria-pressed.
+  await expect(page.getByTestId('veredicto-enviar')).not.toHaveAttribute('aria-pressed', /.*/);
 });
 
 test('los botones principales muestran su atajo de teclado', async ({ page }) => {

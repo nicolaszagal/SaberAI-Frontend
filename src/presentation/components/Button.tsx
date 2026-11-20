@@ -16,7 +16,7 @@ interface Props {
   bg?: string;
   border?: string;
   color?: string;
-  /** Opción elegida en un grupo de alternativas (se anuncia como seleccionada). */
+  /** Opción elegida en un grupo de alternativas (se anuncia con `aria-pressed`: true elegida, false no). */
   selected?: boolean;
 }
 
@@ -35,7 +35,9 @@ export function Button({ label, shortcut, onPress, disabled, testID, variant = '
       accessibilityRole="button"
       onPress={onPress}
       disabled={disabled}
-      accessibilityState={selected === undefined ? undefined : { selected, disabled: !!disabled }}
+      // react-native-web 0.21 no traduce `accessibilityState`: el estado de una opción elegida llega al DOM
+      // solo con `aria-pressed` (válido en role=button). `disabled` ya lo emite RN-web como `aria-disabled`.
+      aria-pressed={selected}
       style={[s.btn, { backgroundColor: fondo, borderColor: marca ?? borde }, marca ? s.elegido : null]}
     >
       <Text style={[s.label, { color: texto }]}>{label}</Text>

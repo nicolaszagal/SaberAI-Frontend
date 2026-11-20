@@ -8,6 +8,21 @@ const DESFASADA = leerPose('pose_frame_inicio');
 const SIN_TRAZOS = leerPose('pose_sin_trazos');
 const OK = { body: REAL };
 
+/**
+ * Caja de los dos tiradores en todos los frames válidos, calculada aparte del código de la app:
+ * keypoints con `detectado` y `conf >= conf_min_keypoint`, los mismos que se dibujan.
+ */
+function cajaDelClip(p: typeof REAL) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const t of [p.tiradores!.A, p.tiradores!.B]) {
+    t.xy.forEach((kps, f) => kps.forEach(([x, y], kp) => {
+      if (!t.detectado[f] || t.conf[f][kp] < p.conf_min_keypoint) return;
+      x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+    }));
+  }
+  return { x0, y0, x1, y1 };
+}
+
 /** Frame del tocado en los arreglos de una pose. */
 const tocadoDe = (p: typeof REAL) => p.frame_tocado - p.frame_inicio;
 
@@ -69,8 +84,8 @@ test.describe('dibujo', () => {
 
     await expect(page.getByTestId('esqueleto-A')).toHaveCount(1);
     await expect(page.getByTestId('esqueleto-B')).toHaveCount(1);
-    await expect(page.getByTestId('etiqueta-A')).toHaveText('A · ROJ');
-    await expect(page.getByTestId('etiqueta-B')).toHaveText('B · VER');
+    await expect(page.getByTestId('etiqueta-A')).toHaveText('ROJ');
+    await expect(page.getByTestId('etiqueta-B')).toHaveText('VER');
     // Se muestra el ángulo que envía Fog para ese frame, sin recalcularlo.
     const i = tocadoDe(REAL);
     const esperado = (a: number) => `${a.toFixed(1).replace('.', ',')}°`;
@@ -84,7 +99,14 @@ test.describe('dibujo', () => {
     await conRevision(page);
     await abrir(page);
     const svg = page.getByTestId('trazos-lienzo');
-    await expect(svg).toHaveAttribute('viewBox', `0 0 ${REAL.frame_w} ${REAL.frame_h}`);
+    // El encuadre es la caja de los dos tiradores en todo el clip más un 8 % por lado (UX01b), no el frame completo.
+    const c = cajaDelClip(REAL);
+    const w = c.x1 - c.x0; const h = c.y1 - c.y0;
+    const [vx, vy, vw, vh] = (await svg.getAttribute('viewBox'))!.split(' ').map(Number);
+    expect(vx).toBeCloseTo(c.x0 - 0.08 * w, 3);
+    expect(vy).toBeCloseTo(c.y0 - 0.08 * h, 3);
+    expect(vw).toBeCloseTo(w * 1.16, 3);
+    expect(vh).toBeCloseTo(h * 1.16, 3);
     await expect(svg).toHaveAttribute('preserveAspectRatio', 'xMidYMid meet');
   });
 
@@ -168,6 +190,8 @@ test.describe('controles', () => {
     await abrir(page);
     const texto = async () => Number(/Frame (\d+) de/.exec(await page.getByTestId('trazos-frame').innerText())![1]);
     const i = tocadoDe(REAL);
+    await expect(page.getByTestId('trazos-vel-1')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('trazos-vel-0.25')).toHaveAttribute('aria-pressed', 'false');
     await page.getByTestId('trazos-play').click();
     await expect.poll(texto).toBeGreaterThan(i + 2);
     await page.getByTestId('trazos-play').click();
@@ -177,6 +201,8 @@ test.describe('controles', () => {
 
     await page.getByTestId('trazos-prev').click(); // vuelve a un frame fijo para medir
     await page.getByTestId('trazos-vel-0.25').click();
+    await expect(page.getByTestId('trazos-vel-0.25')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('trazos-vel-1')).toHaveAttribute('aria-pressed', 'false');
     const antes = await texto();
     await page.getByTestId('trazos-play').click();
     await page.waitForTimeout(600); // a 30 fps y 1× serían ~18 frames; a 0,25× ~4
@@ -277,7 +303,7 @@ test.describe('foco, teclado y decisión intacta', () => {
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('vista-interpretacion')).toHaveCount(0);
     await expect(page.getByTestId('resumen-decision')).toHaveCount(0);
-    await expect(page.getByTestId('veredicto-anular')).not.toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('veredicto-anular')).toHaveAttribute('aria-pressed', 'false');
   });
 
   test('abrir y cerrar la vista no registra veredicto ni cambia la elección', async ({ page }) => {
@@ -290,7 +316,7 @@ test.describe('foco, teclado y decisión intacta', () => {
     await abrir(page);
     await page.getByTestId('interpretacion-cerrar').click();
     await expect(page.getByTestId('vista-interpretacion')).toHaveCount(0);
-    await expect(page.getByTestId('resumen-decision')).toContainText('Cambia la decisión en pista · clase final: Ataque · B · VER');
+    await expect(page.getByTestId('resumen-decision')).toContainText('Cambia la decisión en pista · clase final: Ataque · VER');
     expect(veredictos).toBe(0);
   });
 });
@@ -311,7 +337,7 @@ test.describe('historial (CU-12)', () => {
     await expect(page.getByTestId('revision-detalle')).toBeVisible();
     expect(pose.peticiones()).toBe(0);
     await page.getByTestId('ver-interpretacion-btn').click();
-    await expect(page.getByTestId('etiqueta-A')).toHaveText('A · ROJ');
+    await expect(page.getByTestId('etiqueta-A')).toHaveText('ROJ');
     expect(pose.peticiones()).toBe(1);
   });
 });

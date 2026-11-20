@@ -1,5 +1,6 @@
 import type { VistaPose } from '../../domain/entities/Pose';
 import type { VistaRazonamiento } from '../../domain/entities/Razonamiento';
+import { eventosCronologicos } from './ordenEventos';
 
 /** Evento del razonamiento ubicado en la barra de tiempo de los trazos. */
 export interface MarcaEvento {
@@ -7,7 +8,7 @@ export interface MarcaEvento {
   evento: number;
   /** Posición en los arreglos de la pose. */
   indice: number;
-  /** `A` o `B` para la extensión del brazo; `acercamiento` para el desplazamiento mutuo. */
+  /** Identificador interno (`A` = ROJ, `B` = VER) para la extensión del brazo; `acercamiento` para el desplazamiento mutuo. */
   rotulo: 'A' | 'B' | 'acercamiento';
 }
 
@@ -32,8 +33,9 @@ export interface MarcasDeBarra {
 export function marcasDeBarra(razonamiento: VistaRazonamiento, pose: VistaPose): MarcasDeBarra {
   const ultimo = pose.nFrames - 1;
   const eventos: MarcaEvento[] = [];
-  for (const [evento, e] of razonamiento.eventos.entries()) {
-    if (e.censuradoInicio || e.tipo === 'tocado') continue;
+  // En orden cronológico, el mismo de la lista de eventos.
+  for (const { evento: e, indice: evento } of eventosCronologicos(razonamiento)) {
+    if (e.censuradoInicio) continue;
     const indice = e.frameIdx - pose.frameInicio;
     if (indice < 0 || indice > ultimo) continue;
     eventos.push({ evento, indice, rotulo: e.tipo === 'inicio_desplazamiento' ? 'acercamiento' : e.tirador ?? 'acercamiento' });
