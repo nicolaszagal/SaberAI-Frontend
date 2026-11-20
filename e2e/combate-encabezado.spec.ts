@@ -45,7 +45,7 @@ test('el historial muestra las revisiones de GET /revisiones', async ({ page }) 
   await page.getByTestId('nav-history').click();
   const fila = page.getByTestId('revision-row');
   await expect(fila).toHaveCount(1);
-  await expect(fila).toContainText('RIPOSTE · B');
+  await expect(fila).toContainText('RIPOSTE · VER');
   await expect(fila).toContainText('74%');
   await expect(fila).toContainText('Pendiente');
 });

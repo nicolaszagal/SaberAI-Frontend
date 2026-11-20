@@ -23,9 +23,9 @@ import { FENCER_LABEL } from '../theme/fencer';
 import { FONT, RADIUS, space } from '../theme/tokens';
 import type { Screen } from '../../../App';
 
-/** "ATAQUE · A" a partir del nombre de clase del modelo (p. ej. AttackA). */
+/** "ATAQUE · ROJ" a partir del nombre de clase del modelo (p. ej. AttackA). */
 function claseLegible(clase: string | null): string {
-  return clase ? `${translateAction(clase)} · ${clase.slice(-1)}` : '—';
+  return clase ? `${translateAction(clase)} · ${FENCER_LABEL[tiradorDeClase(clase)]}` : '—';
 }
 
 function formatFecha(iso: string): string {
@@ -224,7 +224,7 @@ export function HistoryScreen({ onNavigate }: Props) {
               ref={el => { filas.current[r.id] = el as unknown as { focus?: () => void } | null; }}
               testID="revision-row"
               accessibilityRole="button"
-              accessibilityState={{ selected: abierta }}
+              aria-expanded={abierta}
               style={[s.row, abierta && s.rowOn]}
               onPress={() => setSeleccionada(abierta ? null : r.id)}
             >
@@ -287,7 +287,7 @@ function Detalle({ s, detalle, error, onReintentar, interpretacion }: {
       )}
       {sug?.disponible && sug.clase && (
         <Text style={s.detalleValor}>
-          {claseLegible(sug.clase)} · Tirador {FENCER_LABEL[tiradorDeClase(sug.clase)]}
+          {claseLegible(sug.clase)}
           {sug.confianza != null ? ` · ${scaleConfidence(sug.confianza)}%` : ''}
         </Text>
       )}

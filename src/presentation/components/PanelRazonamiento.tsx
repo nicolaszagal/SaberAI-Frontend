@@ -13,6 +13,7 @@ import type { EstadoRazonamientoCarga } from '../hooks/useRazonamiento';
 import type { EventoRazonamiento, EstadoRazonamiento, VistaRazonamiento } from '../../domain/entities/Razonamiento';
 import { motivoLegible, nombreAccion, scaleConfidence, tiradorDeClase } from '../../application/mappers/actionMapper';
 import { tiempoDesdeMs } from '../../application/pose/geometriaPose';
+import { eventosCronologicos } from '../../application/razonamiento/ordenEventos';
 import { FENCER_LABEL, fencerColor } from '../theme/fencer';
 import { FONT, RADIUS, space } from '../theme/tokens';
 
@@ -120,8 +121,10 @@ export function Contenido({ r, seleccionado, onVerEnTrazos }: PropsContenido) {
   }
 
   const clase = r.criterio?.clase ?? null;
-  // El tocado es la referencia, no un evento; se conserva la posición en `r.eventos` para enlazar con la barra.
-  const eventos = r.eventos.map((e, indice) => ({ e, indice })).filter(x => x.e.tipo !== 'tocado');
+  // En orden cronológico (el censurado al inicio primero); `indice` enlaza cada fila con su marca en la barra.
+  const eventos = eventosCronologicos(r);
+  // La línea del criterio solo se muestra si ninguna frase del Fog ya nombra el artículo.
+  const criterioEnFrases = r.criterio !== null && r.frases.some(f => f.includes(r.criterio!.articulo));
   return (
     <>
       <View testID="razonamiento-sugerencia" style={[s.tarjeta, { borderLeftColor: clase ? fencerColor(C, tiradorDeClase(clase)) : C.borderBright }]}>
@@ -144,7 +147,7 @@ export function Contenido({ r, seleccionado, onVerEnTrazos }: PropsContenido) {
         </View>
       )}
 
-      {r.criterio && (
+      {r.criterio && !criterioEnFrases && (
         <Text testID="razonamiento-criterio" style={s.valor}>
           Criterio FIE de referencia: <Text style={s.negrita}>{r.criterio.articulo}</Text>
         </Text>
@@ -153,7 +156,7 @@ export function Contenido({ r, seleccionado, onVerEnTrazos }: PropsContenido) {
       {eventos.length > 0 && (
         <View style={s.eventos}>
           <Text style={s.etiqueta}>Eventos medidos sobre la pose</Text>
-          {eventos.map(({ e, indice }) => {
+          {eventos.map(({ evento: e, indice }) => {
             const elegido = seleccionado === indice;
             return (
               <Pressable

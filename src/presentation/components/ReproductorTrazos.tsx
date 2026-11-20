@@ -68,7 +68,12 @@ export function AvisoPose({ estado, reintentar }: { estado: EstadoPose; reintent
   return <StateMessage testID="trazos-cargando" tipo="cargando" titulo="Cargando los trazos…" />;
 }
 
-/** Color de la marca de un evento: rojo (A), verde (B) o cian (acercamiento). */
+/** Texto de la etiqueta de un evento en la barra: ROJ o VER; el acercamiento (sin tirador) va con ↔. */
+function textoEvento(rotulo: 'A' | 'B' | 'acercamiento'): string {
+  return rotulo === 'A' ? FENCER_LABEL.ROJ : rotulo === 'B' ? FENCER_LABEL.VER : '↔';
+}
+
+/** Color de la marca de un evento: rojo (ROJ), verde (VER) o cian (acercamiento). */
 function colorEvento(C: ReturnType<typeof useC>, rotulo: 'A' | 'B' | 'acercamiento'): string {
   return rotulo === 'A' ? C.red : rotulo === 'B' ? C.green : C.cyan;
 }
@@ -195,7 +200,7 @@ export function Reproductor({ pose, razonamiento, seleccion, onSeleccionarEvento
               <Pressable
                 key={`${m.rotulo}-${m.indice}`} testID="marca-evento"
                 accessibilityRole="button" aria-pressed={elegida}
-                accessibilityLabel={`Evento ${m.rotulo}, frame ${m.indice}`}
+                accessibilityLabel={`Evento ${m.rotulo === 'acercamiento' ? 'acercamiento' : textoEvento(m.rotulo)}, frame ${m.indice}`}
                 disabled={!onSeleccionarEvento}
                 onPress={() => onSeleccionarEvento?.(m.evento)}
                 style={[s.zonaMarca, { left: `${pct(m.indice)}%` }]}
@@ -214,7 +219,7 @@ export function Reproductor({ pose, razonamiento, seleccion, onSeleccionarEvento
                 style={[s.etiquetaEvento, { left: `${pct(m.indice)}%`, color: colorEvento(C, m.rotulo) },
                   seleccion?.evento === m.evento && s.etiquetaElegida]}
               >
-                {m.rotulo === 'acercamiento' ? '↔' : m.rotulo}
+                {textoEvento(m.rotulo)}
               </Text>
             ))}
           </View>
@@ -230,12 +235,18 @@ export function Reproductor({ pose, razonamiento, seleccion, onSeleccionarEvento
             </Text>
           )}
           {marcas && marcas.eventos.length > 0 && (
-            <Text style={s.leyenda}>A/B inicio de extensión del brazo · ↔ inicio del acercamiento</Text>
+            <Text style={s.leyenda}>
+              <Text style={{ color: C.red, fontWeight: '800' }}>{FENCER_LABEL.ROJ}</Text>{' '}
+              <Text style={{ color: C.green, fontWeight: '800' }}>{FENCER_LABEL.VER}</Text>{' '}
+              inicio de extensión del brazo · ↔ inicio del acercamiento
+            </Text>
           )}
           {marcas?.ventana && (
             <Text testID="leyenda-ventana" style={s.leyenda}><Text style={{ color: C.cyan }}>▬</Text> Ventana de atención del modelo</Text>
           )}
-          <Text style={s.leyenda}>{FENCER_LABEL.ROJ} · {FENCER_LABEL.VER}</Text>
+          <Text style={s.leyenda}>
+            <Text style={{ color: C.red, fontWeight: '800' }}>{FENCER_LABEL.ROJ}</Text> · <Text style={{ color: C.green, fontWeight: '800' }}>{FENCER_LABEL.VER}</Text>
+          </Text>
         </View>
       </View>
     </View>
@@ -255,8 +266,8 @@ const styles = (C: ReturnType<typeof useC>) => StyleSheet.create({
   ventana:   { position: 'absolute', top: 0, bottom: 0, backgroundColor: C.cyan, opacity: 0.3 },
   zonaMarca: { position: 'absolute', top: 0, bottom: 0, width: ANCHO_MARCA, marginLeft: -ANCHO_MARCA / 2, alignItems: 'center' },
   sinToque:  { pointerEvents: 'none' },
-  etiquetasEventos: { height: 16 },
-  etiquetaEvento: { position: 'absolute', top: 0, marginLeft: -4, fontSize: FONT.xs, fontWeight: '800' },
+  etiquetasEventos: { height: 20 },
+  etiquetaEvento: { position: 'absolute', top: 0, marginLeft: -12, fontSize: FONT.xs, fontWeight: '800' },
   etiquetaElegida: { fontSize: FONT.md, textDecorationLine: 'underline' },
   cursor:    { position: 'absolute', top: 0, bottom: 0, width: 2, marginLeft: -1, backgroundColor: C.text },
   leyenda:   { color: C.textMuted, fontSize: FONT.xs },

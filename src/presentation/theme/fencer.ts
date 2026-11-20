@@ -2,12 +2,12 @@ import type { FencerColor } from '../../domain/entities/Fencer';
 import { DARK_THEME, type ThemeColors } from './colors';
 
 /**
- * Rótulo del tirador. El color nunca es el único indicador: el lado (A/B) y el
- * nombre del color siempre van escritos. A = ROJ, B = VER (docs_claude/contexto_sabre.md).
+ * Rótulo del tirador: solo el nombre del color (EXP03-b). El color nunca es el único indicador, así que
+ * el nombre siempre va escrito. A y B (ROJ y VER) quedan como identificadores internos (API, `tirador`).
  */
 export const FENCER_LABEL: Record<FencerColor, string> = {
-  ROJ: 'A · ROJ',
-  VER: 'B · VER',
+  ROJ: 'ROJ',
+  VER: 'VER',
 };
 
 /**
