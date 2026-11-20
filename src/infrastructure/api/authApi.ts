@@ -1,4 +1,4 @@
-import { FOG_BASE_URL } from '../config';
+import { getNodoFog, opcionesRedLocal } from '../config';
 import { fogFetch } from './fogFetch';
 
 /** Fallo de login con el mensaje listo para mostrar al usuario. */
@@ -25,8 +25,10 @@ export class LoginError extends Error {
  */
 export async function login(usuario: string, password: string): Promise<string> {
   let res: Response;
+  const base = getNodoFog();
   try {
-    res = await fetch(`${FOG_BASE_URL}/auth/login`, {
+    res = await fetch(`${base}/auth/login`, {
+      ...opcionesRedLocal(base),
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ usuario, password }),

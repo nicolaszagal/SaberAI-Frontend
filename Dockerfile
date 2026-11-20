@@ -1,8 +1,8 @@
 # Frontend web de SABRE.AI: build estático de producción (export web de Expo)
 # servido por nginx. Sin servidor de desarrollo.
 #
-# EXPO_PUBLIC_FOG_URL se incrusta en el bundle durante el build (Metro inlinea
-# las variables EXPO_PUBLIC_*): para cambiarla hay que reconstruir la imagen.
+# EXPO_PUBLIC_FOG_URL (Metro la inlinea en el bundle) solo fija el valor INICIAL del campo "Nodo Fog"
+# del login (DEPLOY11): el usuario puede cambiarlo en ejecución y el navegador lo recuerda.
 FROM node:20-alpine AS build
 
 WORKDIR /app

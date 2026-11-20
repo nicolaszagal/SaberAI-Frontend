@@ -1,4 +1,4 @@
-import { FOG_BASE_URL } from '../config';
+import { getNodoFog, opcionesRedLocal } from '../config';
 import { expirarSesion, getToken } from './sesionToken';
 
 /**
@@ -20,7 +20,8 @@ export async function fogFetch(path: string, init: RequestInit = {}): Promise<Re
   const token = getToken();
   const headers = new Headers(init.headers);
   if (token) headers.set('Authorization', `Bearer ${token}`);
-  const res = await fetch(`${FOG_BASE_URL}${path}`, { ...init, headers });
+  const base = getNodoFog();
+  const res = await fetch(`${base}${path}`, { ...opcionesRedLocal(base), ...init, headers });
   if (res.status === 401 && token) expirarSesion();
   return res;
 }
