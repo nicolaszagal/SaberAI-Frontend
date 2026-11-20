@@ -1,50 +1,31 @@
-# Contenedor único para Railway (DEPLOY06): sirve el build estático en "/" y
-# reenvía "/api/" al Fog (túnel https). Sin autenticación básica: el acceso lo
-# controla el login del Fog (JWT) y el X-Proxy-Token que este proxy agrega.
-# Las variables ${...} las sustituye la imagen nginx al arrancar (envsubst sobre
-# /etc/nginx/templates); $nginx_var queda intacto porque no está definida en el entorno.
+# Frontend estático para Railway (DEPLOY11). Solo sirve el build de Expo: no hay /api ni reenviadores.
+# Las variables ${...} las sustituye la imagen nginx al arrancar (envsubst sobre /etc/nginx/templates);
+# $nginx_var queda intacto porque no está definida en el entorno.
 
 server_tokens off;
-
-# IP real del cliente según Railway (X-Real-IP, documentada). Se envía a Fog como único
-# valor de X-Forwarded-For, así un X-Forwarded-For enviado por el navegador no llega a Fog.
-# Sin X-Real-IP (ejecución local con docker run) se usa la IP del socket.
-map $http_x_real_ip $cliente_ip {
-    default $http_x_real_ip;
-    ""      $remote_addr;
-}
 
 server {
     listen ${PORT};
     listen [::]:${PORT};
     server_name _;
 
-    # Igual al límite de subida de Fog (CLIP_MAX_MB, shared/config.py): un clip mayor recibe 413.
-    client_max_body_size ${CLIP_MAX_MB}m;
-
     # Cabeceras de seguridad (a nivel de server: no usar add_header dentro de location,
     # porque anularía las heredadas).
     add_header Strict-Transport-Security "max-age=31536000" always;
-    # Justificación de lo que el bundle de Expo necesita sobre la base pedida:
+    # connect-src: el propio origen, el Fog local del usuario (loopback, cualquier puerto) y, solo si el
+    # despliegue los declara en FOG_ORIGENES_EXTRA, orígenes https:// concretos. Sin comodín https:.
     #  - media-src blob: el reproductor del clip usa URL.createObjectURL (blob:).
     #  - style-src 'unsafe-inline': react-native-web inyecta <style> en tiempo de ejecución.
     #  - script-src: no hace falta 'unsafe-inline' (el export carga un único .js externo).
-    add_header Content-Security-Policy "default-src 'self'; connect-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'" always;
+    add_header Content-Security-Policy "default-src 'self'; connect-src 'self' http://localhost:* http://127.0.0.1:* ${FOG_ORIGENES_EXTRA}; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "no-referrer" always;
     add_header Permissions-Policy "camera=(), microphone=()" always;
 
-    # Mismo formato {"detail": ...} que Fog para que la interfaz muestre el motivo.
-    error_page 413 @clip_grande;
-    location @clip_grande {
-        default_type application/json;
-        return 413 '{"detail":"El clip supera el tamaño máximo permitido (${CLIP_MAX_MB} MB)."}';
-    }
-
     root /usr/share/nginx/html;
     index index.html;
 
-    # Healthcheck de Railway: propio del contenedor, no depende del Fog ni del túnel.
+    # Healthcheck de Railway: propio del contenedor.
     location = /healthz {
         access_log off;
         default_type text/plain;
@@ -62,22 +43,5 @@ server {
 
     location / {
         try_files $uri $uri/ /index.html;
-    }
-
-    location /api/ {
-        # El nombre del túnel se resuelve en cada petición (resolver + variable), no al
-        # arrancar: el túnel cambia de URL y puede no existir, y el contenedor no debe
-        # caerse por eso. Con variable, proxy_pass no quita el prefijo: lo hace el rewrite.
-        resolver 1.1.1.1 8.8.8.8 valid=30s ipv6=off;
-        set $fog_upstream "${FOG_UPSTREAM}";
-        rewrite ^/api/(.*)$ /$1 break;
-        proxy_pass $fog_upstream;
-        proxy_http_version 1.1;
-        proxy_ssl_server_name on;
-        proxy_set_header Host $proxy_host;
-        proxy_set_header X-Proxy-Token "${PROXY_SHARED_TOKEN}";
-        proxy_set_header X-Forwarded-For $cliente_ip;
-        proxy_read_timeout 120s;
-        proxy_send_timeout 120s;
     }
 }

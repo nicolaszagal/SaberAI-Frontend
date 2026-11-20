@@ -4,7 +4,7 @@ Comprueba qué ve el usuario en Chromium, Firefox y WebKit cuando el frontend, s
 Fog en `http://localhost:8001`. No se ejecuta con `npx playwright test` (que corre `e2e/`): necesita servicios
 reales y por eso tiene su propia configuración.
 
-1. Exporte el frontend y sírvalo por HTTPS con un certificado de prueba y la CSP de `deploy/railway/nginx.estatico.conf.template`.
+1. Exporte el frontend y sírvalo por HTTPS con un certificado de prueba y la CSP de `deploy/railway/nginx.conf.template`.
 2. Levante un Fog en `http://localhost:8001` con `CORS_ORIGINS=https://localhost:8443` (y `CLOUD_TRANSPORTE=http`).
 3. Corra:
 
