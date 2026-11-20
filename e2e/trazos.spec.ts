@@ -19,8 +19,8 @@ async function conRevision(page: Page) {
 }
 
 async function abrir(page: Page) {
-  await page.getByTestId('ver-trazos-btn').click();
-  await expect(page.getByTestId('modal-trazos')).toBeVisible();
+  await page.getByTestId('ver-interpretacion-btn').click();
+  await expect(page.getByTestId('vista-interpretacion')).toBeVisible();
 }
 
 test.beforeEach(async ({ page }) => {
@@ -31,28 +31,28 @@ test.beforeEach(async ({ page }) => {
 
 test.describe('apertura y carga bajo demanda', () => {
   test('sin revisión el botón está deshabilitado', async ({ page }) => {
-    await expect(page.getByTestId('ver-trazos-btn')).toHaveAttribute('aria-disabled', 'true');
+    await expect(page.getByTestId('ver-interpretacion-btn')).toHaveAttribute('aria-disabled', 'true');
   });
 
-  test('con revisión abre el modal y pide la pose una sola vez, aunque se reabra', async ({ page }) => {
+  test('con revisión abre la vista; la pose se pidió al terminar el análisis y no se vuelve a pedir al reabrir', async ({ page }) => {
     const pose = await mockPose(page, OK);
     await conRevision(page);
-    await expect(page.getByTestId('ver-trazos-btn')).not.toHaveAttribute('aria-disabled', 'true');
-    expect(pose.peticiones()).toBe(0); // bajo demanda: nada se pide al analizar
+    await expect(page.getByTestId('ver-interpretacion-btn')).not.toHaveAttribute('aria-disabled', 'true');
+    await expect.poll(pose.peticiones).toBe(1); // precarga (UX01): nada espera a abrir la vista
     await abrir(page);
     await expect(page.getByTestId('trazos-lienzo')).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(page.getByTestId('modal-trazos')).toHaveCount(0);
+    await expect(page.getByTestId('vista-interpretacion')).toHaveCount(0);
     await abrir(page);
     await expect(page.getByTestId('trazos-lienzo')).toBeVisible();
     expect(pose.peticiones()).toBe(1);
   });
 
-  test('el atajo T abre el modal', async ({ page }) => {
+  test('el atajo T abre la vista', async ({ page }) => {
     await mockPose(page, OK);
     await conRevision(page);
     await page.keyboard.press('t');
-    await expect(page.getByTestId('modal-trazos')).toBeVisible();
+    await expect(page.getByTestId('vista-interpretacion')).toBeVisible();
   });
 });
 
@@ -63,9 +63,9 @@ test.describe('dibujo', () => {
     await abrir(page);
     await expect(page.getByTestId('trazos-lienzo')).toBeVisible();
 
-    expect(await page.getByTestId('modal-trazos').evaluate(e => getComputedStyle(e).backgroundColor)).toBe('rgb(0, 0, 0)');
+    expect(await page.getByTestId('seccion-trazos').evaluate(e => getComputedStyle(e).backgroundColor)).toBe('rgb(0, 0, 0)');
     expect(await page.getByTestId('trazos-lienzo').locator('rect').first().getAttribute('fill')).toBe('#000000');
-    await expect(page.getByTestId('modal-trazos').locator('video')).toHaveCount(0);
+    await expect(page.getByTestId('vista-interpretacion').locator('video')).toHaveCount(0);
 
     await expect(page.getByTestId('esqueleto-A')).toHaveCount(1);
     await expect(page.getByTestId('esqueleto-B')).toHaveCount(1);
@@ -115,7 +115,7 @@ test.describe('dibujo', () => {
     await expect(page.getByTestId('esqueleto-B')).toHaveCount(0);
     await expect(page.getByTestId('esqueleto-A')).toHaveCount(1);
     await expect(page.getByTestId('trazos-incompleto')).toBeVisible();
-    await expect(page.getByTestId('modal-trazos')).toContainText('Detección incompleta');
+    await expect(page.getByTestId('vista-interpretacion')).toContainText('Detección incompleta');
   });
 });
 
@@ -248,26 +248,26 @@ test.describe('estados', () => {
 });
 
 test.describe('foco, teclado y decisión intacta', () => {
-  test('Esc cierra el modal, no borra la elección del árbitro y el foco vuelve al botón', async ({ page }) => {
+  test('Esc cierra la vista, no borra la elección del árbitro y el foco vuelve al Paso 3', async ({ page }) => {
     await mockPose(page, OK);
     await conRevision(page);
     await page.getByTestId('modifica-no').click();
     await expect(page.getByTestId('resumen-decision')).toBeVisible();
 
-    await page.getByTestId('ver-trazos-btn').focus();
+    await page.getByTestId('ver-interpretacion-btn').focus();
     await page.keyboard.press('Enter');
-    await expect(page.getByTestId('modal-trazos')).toBeVisible();
+    await expect(page.getByTestId('vista-interpretacion')).toBeVisible();
     await expect(page.getByTestId('trazos-lienzo')).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(page.getByTestId('modal-trazos')).toHaveCount(0);
+    await expect(page.getByTestId('vista-interpretacion')).toHaveCount(0);
 
     await expect(page.getByTestId('resumen-decision')).toBeVisible();
     await expect(page.getByTestId('resumen-decision')).toContainText('Mantiene la decisión en pista');
     await expect(page.getByTestId('decision-limpiar')).not.toHaveAttribute('aria-disabled', 'true');
-    await expect(page.getByTestId('ver-trazos-btn')).toBeFocused();
+    await expect(page.getByTestId('paso-decision')).toBeFocused();
   });
 
-  test('con el modal abierto los atajos de la pantalla de fondo no responden', async ({ page }) => {
+  test('con la vista abierta los atajos de la pantalla de fondo no responden', async ({ page }) => {
     await mockPose(page, OK);
     await conRevision(page);
     await abrir(page);
@@ -275,12 +275,12 @@ test.describe('foco, teclado y decisión intacta', () => {
     await page.keyboard.press('a'); // "Anular la acción" en la pantalla de fondo
     await expect(page.getByTestId('resumen-decision')).toHaveCount(0);
     await page.keyboard.press('Escape');
-    await expect(page.getByTestId('modal-trazos')).toHaveCount(0);
+    await expect(page.getByTestId('vista-interpretacion')).toHaveCount(0);
     await expect(page.getByTestId('resumen-decision')).toHaveCount(0);
     await expect(page.getByTestId('veredicto-anular')).not.toHaveAttribute('aria-selected', 'true');
   });
 
-  test('abrir y cerrar el modal no registra veredicto ni cambia la elección', async ({ page }) => {
+  test('abrir y cerrar la vista no registra veredicto ni cambia la elección', async ({ page }) => {
     await mockPose(page, OK);
     let veredictos = 0;
     await page.route(`**/revisiones/${REVISION_ID}/veredicto`, route => { veredictos += 1; return route.abort(); });
@@ -288,15 +288,15 @@ test.describe('foco, teclado y decisión intacta', () => {
     await page.getByTestId('modifica-si').click();
     await page.getByTestId('clase-AttackB').click();
     await abrir(page);
-    await page.getByTestId('trazos-cerrar').click();
-    await expect(page.getByTestId('modal-trazos')).toHaveCount(0);
+    await page.getByTestId('interpretacion-cerrar').click();
+    await expect(page.getByTestId('vista-interpretacion')).toHaveCount(0);
     await expect(page.getByTestId('resumen-decision')).toContainText('Cambia la decisión en pista · clase final: Ataque · B · VER');
     expect(veredictos).toBe(0);
   });
 });
 
 test.describe('historial (CU-12)', () => {
-  test('el detalle de una revisión tiene "Ver trazos" y abre el modal', async ({ page }) => {
+  test('el detalle de una revisión tiene "Ver interpretación" y abre la vista con los trazos', async ({ page }) => {
     await mockApi(page, {
       revisiones: [{ id: REVISION_ID, abierta_en: '2026-10-05T15:00:00Z', disponible: true, clase: 'AttackA',
         confianza: 0.9, decision: null, clase_final: null }],
@@ -310,7 +310,7 @@ test.describe('historial (CU-12)', () => {
     await page.getByTestId('revision-row').click();
     await expect(page.getByTestId('revision-detalle')).toBeVisible();
     expect(pose.peticiones()).toBe(0);
-    await page.getByTestId('ver-trazos-btn').click();
+    await page.getByTestId('ver-interpretacion-btn').click();
     await expect(page.getByTestId('etiqueta-A')).toHaveText('A · ROJ');
     expect(pose.peticiones()).toBe(1);
   });

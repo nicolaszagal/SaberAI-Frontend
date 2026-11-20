@@ -14,7 +14,8 @@ import { useShortcut } from '../hooks/useShortcut';
 import { useTranscurrido } from '../hooks/useTranscurrido';
 import { FENCER_LABEL, fencerColor } from '../theme/fencer';
 import { FONT, RADIUS, space } from '../theme/tokens';
-import { BotonesInterpretacion, ModalesInterpretacion } from './InterpretacionRevision';
+import { BotonInterpretacion, ResumenInterpretacion } from './InterpretacionRevision';
+import { VistaInterpretacion } from './VistaInterpretacion';
 import { useInterpretacion } from '../hooks/useInterpretacion';
 import { LIMITE_ANALISIS_MS } from '../../application/AnalyzeClipUseCase';
 import {
@@ -28,13 +29,14 @@ function claseCompleta(clase: string): string {
   return `${nombreAccion(clase)} · ${FENCER_LABEL[tiradorDeClase(clase)]}`;
 }
 
-function Paso({ numero, titulo, children, testID }: {
-  numero: number; titulo: string; children: React.ReactNode; testID?: string;
+/** Un paso del panel. Con `focoRef` el paso puede recibir el foco por código (al cerrar la vista de interpretación). */
+function Paso({ numero, titulo, children, testID, focoRef }: {
+  numero: number; titulo: string; children: React.ReactNode; testID?: string; focoRef?: React.Ref<View>;
 }) {
   const C = useC();
   const s = useMemo(() => styles(C), [C]);
   return (
-    <View testID={testID} style={s.paso}>
+    <View ref={focoRef} tabIndex={focoRef ? -1 : undefined} testID={testID} style={s.paso}>
       <Text style={s.pasoTitulo}>Paso {numero} · {titulo}</Text>
       {children}
     </View>
@@ -133,15 +135,19 @@ export function PasoClip(p: PasoClipProps) {
 
 // ─── Paso 2 · Sugerencia ─────────────────────────────────────────────────────
 
-export function PasoSugerencia() {
+/**
+ * Args:
+ *   retornoFoco: se llama al cerrar la vista de interpretación, para devolver el foco al Paso 3 (Decisión).
+ */
+export function PasoSugerencia({ retornoFoco }: { retornoFoco?: () => void }) {
   const C = useC();
   const s = useMemo(() => styles(C), [C]);
   const { revision, sessionStatus } = useSession();
   const sug = revision?.sugerencia ?? null;
   const analizando = sessionStatus === 'analyzing';
   const revisionId = sessionStatus === 'done' ? revision?.revisionId ?? null : null;
-  // Trazos (T) y razonamiento (J): al cambiar de revisión los modales se cierran.
-  const interpretacion = useInterpretacion(revisionId);
+  // Vista de interpretación (I, T, J): pide la pose y el razonamiento en cuanto la revisión está lista.
+  const interpretacion = useInterpretacion(revisionId, { precargar: true, alCerrar: retornoFoco });
 
   return (
     <Paso numero={2} titulo="Sugerencia" testID="paso-sugerencia">
@@ -173,8 +179,9 @@ export function PasoSugerencia() {
           Sin sugerencia todavía. Completa el Paso 1 y pulsa ANALIZAR.
         </Text>
       )}
-      <BotonesInterpretacion ctl={interpretacion} />
-      <ModalesInterpretacion ctl={interpretacion} />
+      <ResumenInterpretacion ctl={interpretacion} />
+      <BotonInterpretacion ctl={interpretacion} />
+      <VistaInterpretacion ctl={interpretacion} />
     </Paso>
   );
 }
@@ -192,7 +199,7 @@ type Eleccion = { tipo: 'clase'; clase: string } | { tipo: 'anular' } | null;
  * sugerencia siempre es cambiar: la clase final la decidió el árbitro. Nunca se pregunta.
  * Nada se envía sin un resumen confirmado.
  */
-export function PasoDecision() {
+export function PasoDecision({ focoRef }: { focoRef?: React.Ref<View> }) {
   const C = useC();
   const s = useMemo(() => styles(C), [C]);
   const { revision, sessionStatus, veredicto, veredictoStatus, veredictoError, registrarVeredicto } = useSession();
@@ -234,7 +241,7 @@ export function PasoDecision() {
   useShortcut({ tecla: 'Escape', activo: puedeDecidir && (eleccion !== null || modifica !== null) }, limpiar);
 
   return (
-    <Paso numero={3} titulo="Decisión del árbitro" testID="paso-decision">
+    <Paso numero={3} titulo="Decisión del árbitro" testID="paso-decision" focoRef={focoRef}>
       {puedeDecidir && (
         <>
           {sug && (

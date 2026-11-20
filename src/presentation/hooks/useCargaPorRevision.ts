@@ -12,13 +12,13 @@ export type EstadoCarga<T> =
 /**
  * Carga bajo demanda de un dato por revisión (pose, razonamiento). Llama a `cargar` solo cuando
  * `activo` pasa a `true` y guarda las respuestas por revisión mientras el componente que usa el
- * hook siga montado: reabrir el modal no vuelve a pedirlas. Los errores no se guardan, así que
+ * hook siga montado: reabrir la vista no vuelve a pedirlas. Los errores no se guardan, así que
  * `reintentar` sí consulta de nuevo.
  *
  * Args:
  *   cargar: pide el dato al Fog; debe ser una función estable (no se vuelve a evaluar al renderizar).
  *   revisionId: revisión de la que se pide el dato; null = ninguna.
- *   activo: si el modal está abierto.
+ *   activo: si hay que pedir el dato.
  *
  * Returns:
  *   El estado de la carga, el dato guardado de la revisión (aunque `activo` sea false) y `reintentar`.

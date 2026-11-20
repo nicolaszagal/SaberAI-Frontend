@@ -11,7 +11,7 @@ export type EstadoRazonamientoCarga = EstadoCarga<VistaRazonamiento>;
  *
  * Args:
  *   revisionId: revisión de la que se pide el razonamiento; null = ninguna.
- *   activo: si el modal de razonamiento está abierto.
+ *   activo: si hay que pedirlo (vista abierta o precarga de Revisión VAR).
  *
  * Returns:
  *   El estado de la carga, el razonamiento ya guardado de esa revisión (o null, sin pedirlo) y `reintentar`.
