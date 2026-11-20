@@ -24,8 +24,8 @@ async function conRevision(page: Page) {
 }
 
 async function abrir(page: Page) {
-  await page.getByTestId('ver-razonamiento-btn').click();
-  await expect(page.getByTestId('modal-razonamiento')).toBeVisible();
+  await page.getByTestId('ver-interpretacion-btn').click();
+  await expect(page.getByTestId('vista-interpretacion')).toBeVisible();
 }
 
 test.beforeEach(async ({ page }) => {
@@ -36,30 +36,30 @@ test.beforeEach(async ({ page }) => {
 
 test.describe('apertura y carga bajo demanda', () => {
   test('sin revisión el botón está deshabilitado y el atajo J no abre nada', async ({ page }) => {
-    await expect(page.getByTestId('ver-razonamiento-btn')).toHaveAttribute('aria-disabled', 'true');
+    await expect(page.getByTestId('ver-interpretacion-btn')).toHaveAttribute('aria-disabled', 'true');
     await page.keyboard.press('j');
-    await expect(page.getByTestId('modal-razonamiento')).toHaveCount(0);
+    await expect(page.getByTestId('vista-interpretacion')).toHaveCount(0);
   });
 
-  test('con revisión pide el razonamiento una sola vez, aunque se reabra', async ({ page }) => {
+  test('el razonamiento se pidió al terminar el análisis y no se vuelve a pedir al reabrir', async ({ page }) => {
     const raz = await mockRazonamiento(page, respuesta('respaldada'));
     await conRevision(page);
-    await expect(page.getByTestId('ver-razonamiento-btn')).not.toHaveAttribute('aria-disabled', 'true');
-    expect(raz.peticiones()).toBe(0); // bajo demanda: nada se pide al analizar
+    await expect(page.getByTestId('ver-interpretacion-btn')).not.toHaveAttribute('aria-disabled', 'true');
+    await expect.poll(raz.peticiones).toBe(1); // precarga (UX01): nada espera a abrir la vista
     await abrir(page);
     await expect(page.getByTestId('razonamiento-estado')).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(page.getByTestId('modal-razonamiento')).toHaveCount(0);
+    await expect(page.getByTestId('vista-interpretacion')).toHaveCount(0);
     await abrir(page);
     await expect(page.getByTestId('razonamiento-estado')).toBeVisible();
     expect(raz.peticiones()).toBe(1);
   });
 
-  test('el atajo J abre el modal', async ({ page }) => {
+  test('el atajo J abre la vista', async ({ page }) => {
     await mockRazonamiento(page, respuesta('respaldada'));
     await conRevision(page);
     await page.keyboard.press('j');
-    await expect(page.getByTestId('modal-razonamiento')).toBeVisible();
+    await expect(page.getByTestId('vista-interpretacion')).toBeVisible();
   });
 
   test('mientras carga muestra el estado de carga', async ({ page }) => {
@@ -145,19 +145,19 @@ test.describe('eventos y trazos', () => {
     await expect(evento.nth(2)).toContainText('Inicio del acercamiento (ambos tiradores)');
   });
 
-  test('"Ver en trazos" abre el modal de trazos en el frame del evento', async ({ page }) => {
+  test('pulsar un evento lleva el cursor de los trazos a su frame, en el lugar', async ({ page }) => {
     await mockRazonamiento(page, respuesta('respaldada'));
     await mockPose(page, POSE);
     await conRevision(page);
     await abrir(page);
-    await page.getByTestId('ver-en-trazos').nth(1).click(); // B: frame 11
-    await expect(page.getByTestId('modal-trazos')).toBeVisible();
-    await expect(page.getByTestId('modal-razonamiento')).toHaveCount(0);
+    await page.getByTestId('razonamiento-evento').nth(1).click(); // B: frame 11
+    await expect(page.getByTestId('vista-interpretacion')).toBeVisible();
+    await expect(page.getByTestId('razonamiento-estado')).toBeVisible(); // el razonamiento sigue a la vista
     await expect(page.getByTestId('trazos-frame')).toContainText('Frame 11 de 39');
     await expect(page.getByTestId('trazos-tiempo')).toHaveText('-0,30 s');
   });
 
-  test('un evento censurado dice "antes del inicio del clip", sin tiempo, y abre en el primer frame', async ({ page }) => {
+  test('un evento censurado dice "antes del inicio del clip", sin tiempo, y lleva el cursor al primer frame', async ({ page }) => {
     await mockRazonamiento(page, respuesta('censurado'));
     await mockPose(page, POSE);
     await conRevision(page);
@@ -166,19 +166,16 @@ test.describe('eventos y trazos', () => {
     await expect(evento.nth(0).getByTestId('razonamiento-evento-tiempo')).toHaveText('antes del inicio del clip');
     await expect(evento.nth(0)).not.toContainText('del tocado');
     await expect(evento.nth(2).getByTestId('razonamiento-evento-tiempo')).toHaveText('antes del inicio del clip'); // acercamiento
-    await evento.nth(0).getByTestId('ver-en-trazos').click();
+    await evento.nth(0).click();
     await expect(page.getByTestId('trazos-frame')).toContainText('Frame 0 de 39');
   });
 
-  test('con el razonamiento en caché la barra de trazos marca los eventos y la ventana de atención', async ({ page }) => {
+  test('la barra de trazos marca los eventos y la ventana de atención', async ({ page }) => {
     const fx = leerRazonamiento('respaldada');
     await mockRazonamiento(page, { body: fx });
     await mockPose(page, POSE);
     await conRevision(page);
     await abrir(page);
-    await page.keyboard.press('Escape');
-    await page.keyboard.press('t');
-    await expect(page.getByTestId('modal-trazos')).toBeVisible();
     await expect(page.getByTestId('ventana-atencion')).toBeVisible();
     await expect(page.getByTestId('marca-evento')).toHaveCount(3);
     await expect(page.getByTestId('etiqueta-evento')).toHaveText(['A', 'B', '↔']);
@@ -190,22 +187,10 @@ test.describe('eventos y trazos', () => {
     await mockPose(page, POSE);
     await conRevision(page);
     await abrir(page);
-    await page.keyboard.press('Escape');
-    await page.keyboard.press('t');
     await expect(page.getByTestId('marca-evento')).toHaveCount(1); // solo B
     await expect(page.getByTestId('etiqueta-evento')).toHaveText(['B']);
   });
 
-  test('sin el razonamiento en caché los trazos no lo piden ni marcan nada', async ({ page }) => {
-    const raz = await mockRazonamiento(page, respuesta('respaldada'));
-    await mockPose(page, POSE);
-    await conRevision(page);
-    await page.keyboard.press('t');
-    await expect(page.getByTestId('trazos-lienzo')).toBeVisible();
-    await expect(page.getByTestId('marca-evento')).toHaveCount(0);
-    await expect(page.getByTestId('ventana-atencion')).toHaveCount(0);
-    expect(raz.peticiones()).toBe(0);
-  });
 });
 
 test.describe('errores por código', () => {
@@ -236,20 +221,20 @@ test.describe('errores por código', () => {
 });
 
 test.describe('la decisión es del árbitro (RNF-01, P-008)', () => {
-  test('Esc cierra el modal y la elección del árbitro sigue igual', async ({ page }) => {
+  test('Esc cierra la vista y la elección del árbitro sigue igual', async ({ page }) => {
     await mockRazonamiento(page, respuesta('discordante'));
     await conRevision(page);
     await page.getByTestId('modifica-no').click();
     await expect(page.getByTestId('resumen-decision')).toBeVisible();
     await abrir(page);
     await page.keyboard.press('Escape');
-    await expect(page.getByTestId('modal-razonamiento')).toHaveCount(0);
+    await expect(page.getByTestId('vista-interpretacion')).toHaveCount(0);
     // Si ese Esc hubiera llegado a "Borrar elección", el resumen habría desaparecido.
     await expect(page.getByTestId('resumen-decision')).toBeVisible();
     await expect(page.getByTestId('veredicto-enviar')).not.toHaveAttribute('aria-disabled', 'true');
   });
 
-  test('con el modal abierto los atajos de fondo no actúan', async ({ page }) => {
+  test('con la vista abierta los atajos de fondo no actúan', async ({ page }) => {
     await mockRazonamiento(page, respuesta('respaldada'));
     await conRevision(page);
     await abrir(page);
@@ -294,14 +279,14 @@ test.describe('contraste de las insignias', () => {
         }));
         expect(contraste(texto, fondo), `${estado} (${tema})`).toBeGreaterThanOrEqual(4.5);
         await page.keyboard.press('Escape');
-        await expect(page.getByTestId('modal-razonamiento')).toHaveCount(0);
+        await expect(page.getByTestId('vista-interpretacion')).toHaveCount(0);
       }
     });
   }
 });
 
 test.describe('historial (CU-12)', () => {
-  test('el detalle de una revisión tiene "Ver razonamiento" y lo abre', async ({ page }) => {
+  test('el detalle de una revisión tiene "Ver interpretación" y muestra el razonamiento', async ({ page }) => {
     await mockApi(page, {
       revisiones: [{ id: REVISION_ID, abierta_en: '2026-10-05T15:00:00Z', disponible: true, clase: 'AttackA',
         confianza: 0.9, decision: null, clase_final: null }],
@@ -316,10 +301,10 @@ test.describe('historial (CU-12)', () => {
     await page.getByTestId('revision-row').click();
     await expect(page.getByTestId('revision-detalle')).toBeVisible();
     expect(raz.peticiones()).toBe(0);
-    await page.getByTestId('ver-razonamiento-btn').click();
+    await page.getByTestId('ver-interpretacion-btn').click();
     await expect(page.getByTestId('razonamiento-estado')).toHaveText(INSIGNIA.respaldada);
     expect(raz.peticiones()).toBe(1);
-    await page.getByTestId('ver-en-trazos').first().click();
+    await page.getByTestId('razonamiento-evento').first().click();
     await expect(page.getByTestId('trazos-frame')).toContainText('Frame 7 de 39'); // A: frame 7
   });
 });

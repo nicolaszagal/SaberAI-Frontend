@@ -4,13 +4,14 @@
  * reciente a la más antigua, con su detalle (GET /revisiones/{id}) al seleccionar una fila
  * y la exportación del resumen de la sesión (L02). Solo muestra campos que devuelve la API.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { useC } from '../context/ThemeContext';
 import { useCombat } from '../context/CombatContext';
 import { Button } from '../components/Button';
 import { StateMessage } from '../components/StateMessage';
-import { BotonesInterpretacion, ModalesInterpretacion } from '../components/InterpretacionRevision';
+import { BotonInterpretacion } from '../components/InterpretacionRevision';
+import { VistaInterpretacion } from '../components/VistaInterpretacion';
 import { useInterpretacion, type Interpretacion } from '../hooks/useInterpretacion';
 import { getResumenSesion, getRevision, getRevisiones, getResumenValidacionTexto } from '../../infrastructure/api/fogApi';
 import { descargarTexto, puedeDescargar } from '../../infrastructure/descarga';
@@ -76,8 +77,12 @@ export function HistoryScreen({ onNavigate }: Props) {
   const [exportando, setExportando] = useState(false);
   const [exportado, setExportado] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
-  // Trazos (T) y razonamiento (J) se piden para la revisión con detalle abierto; al cambiarla los modales se cierran.
-  const interpretacion = useInterpretacion(detalle && detalle.id === seleccionada ? detalle.id : null);
+  // La vista de interpretación (I, T, J) pide la pose y el razonamiento al abrirse, para la revisión con
+  // detalle abierto; al cerrarla el foco vuelve a su fila. Al cambiar de revisión se cierra.
+  const filas = useRef<Record<string, { focus?: () => void } | null>>({});
+  const interpretacion = useInterpretacion(detalle && detalle.id === seleccionada ? detalle.id : null, {
+    alCerrar: () => { if (seleccionada) filas.current[seleccionada]?.focus?.(); },
+  });
 
   const cargar = useCallback(() => {
     if (!eventoId) return undefined;
@@ -159,7 +164,7 @@ export function HistoryScreen({ onNavigate }: Props) {
 
   return (
     <ScrollView style={s.root} contentContainerStyle={s.content}>
-      <ModalesInterpretacion ctl={interpretacion} />
+      <VistaInterpretacion ctl={interpretacion} />
       <View style={s.head}>
         <Text style={s.title}>Revisiones del evento{revisiones ? ` · ${revisiones.length}` : ''}</Text>
         {puedeDescargar && (
@@ -216,6 +221,7 @@ export function HistoryScreen({ onNavigate }: Props) {
         return (
           <View key={r.id}>
             <TouchableOpacity
+              ref={el => { filas.current[r.id] = el as unknown as { focus?: () => void } | null; }}
               testID="revision-row"
               accessibilityRole="button"
               accessibilityState={{ selected: abierta }}
@@ -298,7 +304,7 @@ function Detalle({ s, detalle, error, onReintentar, interpretacion }: {
       {detalle.registradoEn && <Text style={s.detalleMeta}>Registrada: {formatFecha(detalle.registradoEn)}</Text>}
 
       <View style={s.accionDetalle}>
-        <BotonesInterpretacion ctl={interpretacion} />
+        <BotonInterpretacion ctl={interpretacion} />
       </View>
 
       {detalle.auditoriaHash && (

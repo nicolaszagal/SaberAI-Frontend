@@ -3,6 +3,8 @@ import type { VistaRazonamiento } from '../../domain/entities/Razonamiento';
 
 /** Evento del razonamiento ubicado en la barra de tiempo de los trazos. */
 export interface MarcaEvento {
+  /** Posición del evento en `razonamiento.eventos`: enlaza la marca con su fila en la lista. */
+  evento: number;
   /** Posición en los arreglos de la pose. */
   indice: number;
   /** `A` o `B` para la extensión del brazo; `acercamiento` para el desplazamiento mutuo. */
@@ -30,11 +32,11 @@ export interface MarcasDeBarra {
 export function marcasDeBarra(razonamiento: VistaRazonamiento, pose: VistaPose): MarcasDeBarra {
   const ultimo = pose.nFrames - 1;
   const eventos: MarcaEvento[] = [];
-  for (const e of razonamiento.eventos) {
+  for (const [evento, e] of razonamiento.eventos.entries()) {
     if (e.censuradoInicio || e.tipo === 'tocado') continue;
     const indice = e.frameIdx - pose.frameInicio;
     if (indice < 0 || indice > ultimo) continue;
-    eventos.push({ indice, rotulo: e.tipo === 'inicio_desplazamiento' ? 'acercamiento' : e.tirador ?? 'acercamiento' });
+    eventos.push({ evento, indice, rotulo: e.tipo === 'inicio_desplazamiento' ? 'acercamiento' : e.tirador ?? 'acercamiento' });
   }
   let ventana: MarcasDeBarra['ventana'] = null;
   const v = razonamiento.ventanaAtencion;

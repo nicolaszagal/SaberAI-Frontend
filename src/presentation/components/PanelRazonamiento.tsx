@@ -1,13 +1,13 @@
 /**
- * Modal de razonamiento (F-035, F-008, CU-09): las frases que explican la sugerencia, el criterio FIE
- * de referencia y los eventos medidos sobre la pose. Se abre bajo demanda; abrirlo o cerrarlo no toca
- * la elección del árbitro (RNF-01, P-008). El texto llega del Fog tal cual: aquí no se reescribe.
+ * Panel de razonamiento (F-035, F-008, CU-09): las frases que explican la sugerencia, el criterio FIE
+ * de referencia y los eventos medidos sobre la pose. Vive dentro de `VistaInterpretacion`, junto a los
+ * trazos; elegir un evento mueve el cursor de los trazos sin cerrar nada. El texto llega del Fog tal
+ * cual: aquí no se reescribe. Nada de esto toca la elección del árbitro (RNF-01, P-008).
  */
 import React, { useMemo } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useC } from '../context/ThemeContext';
 import type { ThemeColors } from '../theme/colors';
-import { ModalRevision } from './ModalRevision';
 import { StateMessage } from './StateMessage';
 import type { EstadoRazonamientoCarga } from '../hooks/useRazonamiento';
 import type { EventoRazonamiento, EstadoRazonamiento, VistaRazonamiento } from '../../domain/entities/Razonamiento';
@@ -24,9 +24,9 @@ const TEXTO_NO_REGISTRADO = 'Esta revisión es anterior al registro de razonamie
 const TEXTO_NO_CALCULADO = 'No se pudo calcular el razonamiento de esta sugerencia.';
 
 /** Estados que traen evidencia (frases, criterio y eventos) y se muestran con insignia. */
-const ESTADOS_CON_EVIDENCIA: readonly EstadoRazonamiento[] = ['respaldada', 'discordante', 'no_concluyente', 'insuficiente'];
+export const ESTADOS_CON_EVIDENCIA: readonly EstadoRazonamiento[] = ['respaldada', 'discordante', 'no_concluyente', 'insuficiente'];
 
-const TEXTO_INSIGNIA: Partial<Record<EstadoRazonamiento, string>> = {
+export const TEXTO_INSIGNIA: Partial<Record<EstadoRazonamiento, string>> = {
   respaldada: 'Respaldada por la pose',
   discordante: 'Evidencia discordante',
   no_concluyente: 'No concluyente',
@@ -34,7 +34,7 @@ const TEXTO_INSIGNIA: Partial<Record<EstadoRazonamiento, string>> = {
 };
 
 /** Color de la insignia (siempre con texto además del color); todos tienen contraste AA sobre `card`. */
-function colorInsignia(C: ThemeColors, estado: EstadoRazonamiento): string {
+export function colorInsignia(C: ThemeColors, estado: EstadoRazonamiento): string {
   switch (estado) {
     case 'respaldada': return C.green;
     case 'discordante': return C.orange;
@@ -49,31 +49,23 @@ function rotuloEvento(e: EventoRazonamiento): string {
   return `${FENCER_LABEL[e.tirador === 'B' ? 'VER' : 'ROJ']} · Inicio de extensión del brazo`;
 }
 
-interface Props {
-  visible: boolean;
-  estado: EstadoRazonamientoCarga;
-  reintentar: () => void;
-  onClose: () => void;
-  /** El árbitro pidió ver un evento en los trazos. */
-  onVerEnTrazos: (evento: EventoRazonamiento) => void;
-}
-
-export function ModalRazonamiento({ visible, estado, reintentar, onClose, onVerEnTrazos }: Props) {
+/**
+ * Insignia del estado del razonamiento: el color siempre va con el texto. La usan el panel y el
+ * resumen del Paso 2.
+ */
+export function InsigniaRazonamiento({ estado, testID }: { estado: EstadoRazonamiento; testID: string }) {
+  const C = useC();
+  const s = useMemo(() => styles(C), [C]);
+  const color = colorInsignia(C, estado);
   return (
-    <ModalRevision
-      visible={visible} onClose={onClose} testID="modal-razonamiento" cerrarTestID="razonamiento-cerrar"
-      titulo="Razonamiento" nota="Apoyo a la sugerencia: la decisión es del árbitro."
-    >
-      <ScrollView contentContainerStyle={{ padding: space(4), gap: space(3), maxWidth: 800, width: '100%', alignSelf: 'center' }}>
-        {estado.tipo === 'listo'
-          ? <Contenido r={estado.dato} onVerEnTrazos={onVerEnTrazos} />
-          : <Aviso estado={estado} reintentar={reintentar} />}
-      </ScrollView>
-    </ModalRevision>
+    <View testID={testID} style={[s.insignia, { borderColor: color }]}>
+      <Text style={[s.insigniaTexto, { color }]}>{TEXTO_INSIGNIA[estado]}</Text>
+    </View>
   );
 }
 
-function Aviso({ estado, reintentar }: { estado: EstadoRazonamientoCarga; reintentar: () => void }) {
+/** Aviso del razonamiento cuando no hay contenido: cargando o error (409 incluido). */
+export function AvisoRazonamiento({ estado, reintentar }: { estado: EstadoRazonamientoCarga; reintentar: () => void }) {
   if (estado.tipo === 'error') {
     if (estado.status === 409 && estado.codigo === 'sin_clasificacion') {
       return (
@@ -96,7 +88,16 @@ function Aviso({ estado, reintentar }: { estado: EstadoRazonamientoCarga; reinte
   return <StateMessage testID="razonamiento-cargando" tipo="cargando" titulo="Cargando el razonamiento…" />;
 }
 
-function Contenido({ r, onVerEnTrazos }: { r: VistaRazonamiento; onVerEnTrazos: (e: EventoRazonamiento) => void }) {
+interface PropsContenido {
+  r: VistaRazonamiento;
+  /** Posición, en `r.eventos`, del evento mostrado en los trazos; null = ninguno. */
+  seleccionado: number | null;
+  /** Elegir un evento lleva el cursor de los trazos a su frame. Sin esto (no hay trazos) las filas no se pulsan. */
+  onVerEnTrazos?: (indiceEvento: number) => void;
+}
+
+/** Contenido del razonamiento: sugerencia, insignia, frases tal como llegan, criterio FIE, eventos y nota. */
+export function Contenido({ r, seleccionado, onVerEnTrazos }: PropsContenido) {
   const C = useC();
   const s = useMemo(() => styles(C), [C]);
 
@@ -119,8 +120,8 @@ function Contenido({ r, onVerEnTrazos }: { r: VistaRazonamiento; onVerEnTrazos: 
   }
 
   const clase = r.criterio?.clase ?? null;
-  const color = colorInsignia(C, r.estado);
-  const eventos = r.eventos.filter(e => e.tipo !== 'tocado');
+  // El tocado es la referencia, no un evento; se conserva la posición en `r.eventos` para enlazar con la barra.
+  const eventos = r.eventos.map((e, indice) => ({ e, indice })).filter(x => x.e.tipo !== 'tocado');
   return (
     <>
       <View testID="razonamiento-sugerencia" style={[s.tarjeta, { borderLeftColor: clase ? fencerColor(C, tiradorDeClase(clase)) : C.borderBright }]}>
@@ -135,9 +136,7 @@ function Contenido({ r, onVerEnTrazos }: { r: VistaRazonamiento; onVerEnTrazos: 
         )}
       </View>
 
-      <View testID="razonamiento-estado" style={[s.insignia, { borderColor: color }]}>
-        <Text style={[s.insigniaTexto, { color }]}>{TEXTO_INSIGNIA[r.estado]}</Text>
-      </View>
+      <InsigniaRazonamiento estado={r.estado} testID="razonamiento-estado" />
 
       {r.frases.length > 0 && (
         <View testID="razonamiento-frases" style={s.frases}>
@@ -154,21 +153,28 @@ function Contenido({ r, onVerEnTrazos }: { r: VistaRazonamiento; onVerEnTrazos: 
       {eventos.length > 0 && (
         <View style={s.eventos}>
           <Text style={s.etiqueta}>Eventos medidos sobre la pose</Text>
-          {eventos.map((e, i) => (
-            <View key={i} testID="razonamiento-evento" style={s.evento}>
-              <Text style={s.eventoRotulo}>{rotuloEvento(e)}</Text>
-              <Text testID="razonamiento-evento-tiempo" style={s.eventoTiempo}>
-                {e.censuradoInicio ? 'antes del inicio del clip' : `${tiempoDesdeMs(e.tMs)} del tocado`}
-              </Text>
+          {eventos.map(({ e, indice }) => {
+            const elegido = seleccionado === indice;
+            return (
               <Pressable
-                testID="ver-en-trazos" accessibilityRole="button"
+                key={indice} testID="razonamiento-evento"
+                accessibilityRole="button" aria-pressed={elegido}
                 accessibilityLabel={`Ver en trazos: ${rotuloEvento(e)}`}
-                onPress={() => onVerEnTrazos(e)} style={s.enlace}
+                disabled={!onVerEnTrazos} onPress={() => onVerEnTrazos?.(indice)}
+                style={[s.evento, elegido && { borderColor: C.cyan, borderWidth: 2 }]}
               >
-                <Text style={s.enlaceTexto}>Ver en trazos</Text>
+                <Text style={s.eventoRotulo}>{rotuloEvento(e)}</Text>
+                <Text testID="razonamiento-evento-tiempo" style={s.eventoTiempo}>
+                  {e.censuradoInicio ? 'antes del inicio del clip' : `${tiempoDesdeMs(e.tMs)} del tocado`}
+                </Text>
+                {onVerEnTrazos && (
+                  <Text testID={elegido ? 'evento-en-trazos' : 'ver-en-trazos'} style={s.enlaceTexto}>
+                    {elegido ? 'Mostrado en los trazos' : 'Ver en trazos'}
+                  </Text>
+                )}
               </Pressable>
-            </View>
-          ))}
+            );
+          })}
         </View>
       )}
 
@@ -188,10 +194,9 @@ const styles = (C: ThemeColors) => StyleSheet.create({
   frases:        { gap: space(1) },
   frase:         { color: C.text, fontSize: FONT.lg },
   eventos:       { gap: space(2) },
-  evento:        { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space(3), backgroundColor: C.card, borderRadius: RADIUS.sm, padding: space(2), minHeight: 44 },
+  evento:        { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space(3), backgroundColor: C.card, borderRadius: RADIUS.sm, borderWidth: 2, borderColor: 'transparent', padding: space(2), minHeight: 44 },
   eventoRotulo:  { color: C.text, fontSize: FONT.sm, fontWeight: '700', flexGrow: 1 },
   eventoTiempo:  { color: C.textMuted, fontSize: FONT.sm },
-  enlace:        { minHeight: 44, justifyContent: 'center', paddingHorizontal: space(2) },
   enlaceTexto:   { color: C.cyan, fontSize: FONT.sm, fontWeight: '700', textDecorationLine: 'underline' },
   nota:          { color: C.textMuted, fontSize: FONT.xs },
 });

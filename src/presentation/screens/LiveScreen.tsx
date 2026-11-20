@@ -32,6 +32,7 @@ export function LiveScreen({ onNavigate }: Props) {
   const [tLuzBMs, setTLuzBMs]     = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const decisionRef = useRef<View>(null);
   const videoRef     = useRef<HTMLVideoElement>(null);
 
   // Libera la URL del clip al cambiarlo o al salir de la pantalla.
@@ -135,8 +136,8 @@ export function LiveScreen({ onNavigate }: Props) {
             onQuitarLuzA={() => setTLuzAMs(null)} onQuitarLuzB={() => setTLuzBMs(null)}
             onAnalizar={handleAnalyze} faltante={faltante}
           />
-          <PasoSugerencia />
-          <PasoDecision />
+          <PasoSugerencia retornoFoco={() => decisionRef.current?.focus()} />
+          <PasoDecision focoRef={decisionRef} />
         </ScrollView>
       </View>
     </View>

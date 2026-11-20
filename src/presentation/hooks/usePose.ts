@@ -11,7 +11,7 @@ export type EstadoPose = EstadoCarga<VistaPose>;
  *
  * Args:
  *   revisionId: revisión de la que se piden los trazos; null = ninguna.
- *   activo: si el modal está abierto.
+ *   activo: si hay que pedirla (vista abierta o precarga de Revisión VAR).
  *
  * Returns:
  *   El estado de la carga y `reintentar`.
