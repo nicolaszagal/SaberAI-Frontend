@@ -1,4 +1,4 @@
-import { opcionesRedLocal } from '../config';
+import { opcionesRedLocal, pistaRedLocal } from '../config';
 import type { HealthResponse } from '../../domain/entities/Combate';
 
 /** Resultado de "Probar conexión": `tipo` para la interfaz y `mensaje` listo para mostrar. */
@@ -37,13 +37,9 @@ export async function probarNodoFog(url: string): Promise<PruebaNodo> {
       mensaje: `El Fog responde, pero no responde ${caidos.join(' ni ') || 'uno de sus componentes'}. Puede iniciar sesión; el sistema estará limitado.`,
     };
   } catch {
-    const remota = typeof location !== 'undefined' && location.protocol === 'https:' && /^http:\/\/(localhost|127\.0\.0\.1)/.test(url);
     return {
       tipo: 'error',
-      mensaje: 'No se pudo conectar con el Fog. Compruebe que esté encendido en esa dirección' +
-        (remota
-          ? ' y que el navegador tenga permitido a esta página acceder a aplicaciones de su equipo (si apareció un aviso de "red local", elija Permitir).'
-          : '.'),
+      mensaje: 'No se pudo conectar con el Fog. Compruebe que esté encendido en esa dirección.' + pistaRedLocal(url),
     };
   } finally {
     clearTimeout(reloj);

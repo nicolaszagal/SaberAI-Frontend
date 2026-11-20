@@ -113,3 +113,21 @@ export function opcionesRedLocal(url: string): RequestInit {
   const https = typeof location !== 'undefined' && location.protocol === 'https:';
   return https && esNodoLoopback(url) ? ({ targetAddressSpace: 'loopback' } as RequestInit) : {};
 }
+
+/**
+ * Pista para cuando no se puede hablar con un Fog local desde una página https.
+ *
+ * Args:
+ *   url: dirección del nodo Fog.
+ *
+ * Returns:
+ *   Texto sobre el permiso de red local (Chrome, Edge, Firefox) y el bloqueo de Safari, o cadena
+ *   vacía si el caso no aplica (la página no es https o el nodo no es local).
+ */
+export function pistaRedLocal(url: string): string {
+  const https = typeof location !== 'undefined' && location.protocol === 'https:';
+  if (!https || !esNodoLoopback(url) || !url.startsWith('http:')) return '';
+  return ' Si el Fog está encendido, puede ser el navegador: Chrome, Edge y Firefox piden permiso para que esta página ' +
+    'acceda a aplicaciones de su equipo (elija Permitir); Safari no permite que una página https:// hable con ' +
+    'http://localhost (use Chrome, Edge o Firefox).';
+}
