@@ -1,6 +1,17 @@
 # SaberAI-Frontend
 
-Interfaz web (Expo / React Native web, TypeScript) de SABRE.AI. Muestra la **sugerencia** del sistema para un tocado de sable; la decisión final es siempre del árbitro. Pantallas de la Validación 1: Revisión VAR (pantalla por defecto), Historial y Combate.
+Interfaz web (Expo / React Native web, TypeScript) de SABRE.AI. Muestra la **sugerencia** del sistema para un tocado de sable; la decisión final es siempre del árbitro. Pantallas: inicio de sesión, Revisión VAR (pantalla por defecto), Historial y Combate.
+
+## Para instalar y usar el sistema completo
+
+Este repositorio es solo la interfaz. La instalación, la ejecución y el manual de usuario están en el repositorio del backend (`SaberAITesis`), carpeta `docs/manuales/`:
+
+- `GUIA_INSTALACION.md`: requisitos e instalación.
+- `GUIA_EJECUCION.md`: cómo arrancar y usar el sistema (el modo A construye este frontend con Docker, sin Node).
+- `MANUAL_USUARIO.md`: uso de la interfaz, con capturas.
+- `GUIA_DESARROLLO.md`: pruebas, arquitectura y convenciones (incluye Playwright).
+
+La interfaz habla solo con Fog (la API del backend). Su dirección sale de `EXPO_PUBLIC_FOG_URL` (`http://localhost:8001` por defecto, ver `src/infrastructure/config.ts`).
 
 ## Comandos
 

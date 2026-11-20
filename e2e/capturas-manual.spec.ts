@@ -5,10 +5,14 @@ import { test, expect, type Page } from '@playwright/test';
  * levantados, sin API simulada. Recorre una sesión completa con tres revisiones (mantener,
  * cambiar y anular, cada una con su pregunta y su resumen) y guarda las 13 imágenes del
  * manual. Todas se regeneran juntas para que muestren el mismo evento. Solo corre con
- * `CAPTURAS=1 SISTEMA_REAL=1 npx playwright test e2e/capturas-manual.spec.ts`.
+ * `CAPTURAS=1 SISTEMA_REAL=1 npx playwright test -c playwright.capturas.config.ts` (la configuración
+ * `playwright.capturas.config.ts` no levanta Expo: usa la interfaz ya servida en `CAPTURAS_URL`, por defecto
+ * la de Docker en http://localhost:8081, la misma que ve un revisor).
  * Usa Google Chrome (`channel: 'chrome'`) porque el Chromium de Playwright no reproduce H.264.
  *
  * Variables obligatorias (sin ellas las rutas quedan vacías y la prueba falla):
+ *   SABRE_USUARIO       usuario maestro de Fog (el AUTH_USER de su .env).
+ *   SABRE_PASSWORD      su contraseña (la que escribió al instalar; no se imprime ni se guarda).
  *   CLIP_1              ruta absoluta del clip de la revisión 1 (el árbitro elige la sugerida).
  *   CLIP_2              ruta absoluta del clip de la revisión 2 (el árbitro elige otra clase).
  *   CLIP_SIN_TIRADORES  ruta absoluta de un video sin tiradores ("Clasificación no disponible").
@@ -36,6 +40,8 @@ const CLIP_SIN_TIRADORES = process.env.CLIP_SIN_TIRADORES ?? '';
 const CLIP_1_T_MS = Number(process.env.CLIP_1_T_MS ?? 0);
 const CLIP_2_T_MS = Number(process.env.CLIP_2_T_MS ?? 0);
 const CLIP_2_T_B_MS = Number(process.env.CLIP_2_T_B_MS ?? CLIP_2_T_MS);
+const USUARIO = process.env.SABRE_USUARIO ?? '';
+const PASSWORD = process.env.SABRE_PASSWORD ?? '';
 
 test.use({ viewport: { width: 1280, height: 800 }, channel: 'chrome' });
 
@@ -75,10 +81,16 @@ async function prepararClip(page: Page, ruta: string, luces: { a: number | null;
 test('sesión completa del manual de usuario', async ({ page }) => {
   test.setTimeout(240_000);
 
-  // La app abre en Revisión VAR; sin combate activo ofrece "Configurar combate".
+  // Sin sesión, la app muestra solo el inicio de sesión.
   await page.goto('/');
-  // Oculta la insignia de herramientas de desarrollo de Expo (no es parte de la interfaz).
-  await page.addStyleTag({ content: 'body > div:not(#root) { display: none !important; }' });
+  // Oculta el video: los clips son de competencia y sus derechos de imagen no son del autor, así que ninguna captura muestra
+  // fotogramas de atletas (el reproductor queda en blanco; los trazos de pose sí se muestran, sobre negro).
+  await page.addStyleTag({ content: 'video { opacity: 0 !important; }' });
+  await page.getByTestId('login-btn').waitFor();
+  await foto(page, '00-login');
+  await page.getByTestId('login-usuario').fill(USUARIO);
+  await page.getByTestId('login-password').fill(PASSWORD);
+  await page.getByTestId('login-btn').click();
   await expect(page.getByTestId('health-indicator')).toContainText('Conectado');
   await page.getByTestId('sin-combate').waitFor();
   await foto(page, '01-revision-sin-combate');
@@ -108,6 +120,13 @@ test('sesión completa del manual de usuario', async ({ page }) => {
   await foto(page, '05-revision-analizando');
   await page.getByTestId('status-done').waitFor({ timeout: 90_000 });
   await foto(page, '06-revision-sugerencia');
+  // Interpretación: trazos de pose y razonamiento (UX01).
+  await page.getByTestId('ver-interpretacion-btn').click();
+  await page.getByTestId('trazos-lienzo').waitFor({ timeout: 30_000 });
+  await page.getByTestId('razonamiento-estado').waitFor({ timeout: 30_000 });
+  await foto(page, '06b-interpretacion');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('vista-interpretacion').waitFor({ state: 'hidden' });
   await page.getByTestId('modifica-no').click();
   await page.getByTestId('resumen-decision').waitFor();
   await page.getByTestId('veredicto-enviar').click();
@@ -152,8 +171,17 @@ test('sesión completa del manual de usuario', async ({ page }) => {
   await page.getByTestId('exportar-ok').waitFor();
   await foto(page, '12-historial-exportado');
 
-  // Finalizar el combate.
-  await page.getByTestId('finalizar-combate-btn').click();
-  await expect(page.getByTestId('combate-activo')).toHaveCount(0);
-  await foto(page, '13-combate-finalizado');
+  // Cerrar la sesión de validación (D-22, D-26): respaldo verificado y, solo si pasa, borrado de los clips.
+  await page.getByTestId('nav-config').click();
+  await page.getByTestId('cerrar-validacion-btn').click();
+  await page.getByTestId('cerrar-validacion-confirmacion').waitFor();
+  await foto(page, '12b-cerrar-sesion-confirmacion');
+  await page.getByTestId('cerrar-validacion-confirmar').click();
+  await page.getByTestId('cerrar-validacion-ok').waitFor({ timeout: 120_000 });
+  await foto(page, '12c-cerrar-sesion-ok');
+
+  // Cerrar la sesión limpia el combate activo: la revisión vuelve a pedir configurarlo.
+  await page.getByTestId('nav-live').click();
+  await page.getByTestId('sin-combate').waitFor();
+  await foto(page, '13-sesion-cerrada');
 });
